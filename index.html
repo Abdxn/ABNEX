@@ -5,428 +5,505 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ABNEX AI</title>
-
 <style>
 *{box-sizing:border-box}
 body{
-  margin:0;background:#050914;color:#eaf6ff;
-  font-family:Arial,sans-serif;min-height:100vh;
-  display:flex;justify-content:center;align-items:center;
-  padding:18px
+ margin:0;background:#050914;color:#eaf6ff;
+ font-family:Arial,sans-serif;min-height:100vh;
+ display:flex;justify-content:center;align-items:center;padding:18px
 }
 .app{
-  width:100%;max-width:440px;
-  background:linear-gradient(160deg,#101d32,#080e1b);
-  border:1px solid #183b59;border-radius:25px;
-  padding:24px;box-shadow:0 0 35px #0077ff22
+ width:100%;max-width:460px;
+ background:linear-gradient(160deg,#101d32,#080e1b);
+ border:1px solid #183b59;border-radius:25px;
+ padding:22px;box-shadow:0 0 35px #0077ff22
 }
 header{text-align:center}
-.logo{
-  font-size:29px;font-weight:800;letter-spacing:5px;
-  color:#58caff;text-shadow:0 0 18px #168bff
-}
+.logo{font-size:29px;font-weight:800;letter-spacing:5px;color:#58caff;text-shadow:0 0 18px #168bff}
 .sub{font-size:11px;letter-spacing:3px;color:#7899b8;margin-top:7px}
 .orb{
-  width:125px;height:125px;border-radius:50%;
-  margin:28px auto 18px;
-  background:radial-gradient(circle at 35% 30%,#9beaff,#168bff 35%,#071b40 72%);
-  box-shadow:0 0 25px #168bff88,inset 0 0 25px #b9f3ff66;
-  animation:glow 2s infinite alternate
+ width:110px;height:110px;border-radius:50%;margin:22px auto 15px;
+ background:radial-gradient(circle at 35% 30%,#9beaff,#168bff 35%,#071b40 72%);
+ box-shadow:0 0 25px #168bff88,inset 0 0 25px #b9f3ff66;
+ transition:.2s
 }
-@keyframes glow{
-  from{transform:scale(.96);box-shadow:0 0 18px #168bff66}
-  to{transform:scale(1.04);box-shadow:0 0 38px #168bffcc}
-}
-.status{
-  text-align:center;color:#62d5ff;font-size:13px;
-  min-height:20px;margin:12px 0 22px
-}
+.status{text-align:center;color:#62d5ff;font-size:12px;min-height:20px;margin:10px 0 17px}
 button{
-  width:100%;padding:15px;margin:6px 0;border:0;
-  border-radius:12px;font-size:14px;font-weight:bold;
-  cursor:pointer
+ width:100%;padding:14px;margin:5px 0;border:0;border-radius:12px;
+ font-size:14px;font-weight:bold;cursor:pointer
 }
 .primary{background:#168bff;color:white}
 .secondary{background:#172a43;color:#bce8ff;border:1px solid #245477}
 .stop{background:#351c2b;color:#ff9ab4;border:1px solid #71344c}
-.panel{
-  margin-top:17px;padding:14px;background:#091525;
-  border:1px solid #19334c;border-radius:13px
-}
+.panel{margin-top:14px;padding:14px;background:#091525;border:1px solid #19334c;border-radius:13px}
 .heading{font-size:10px;letter-spacing:2px;color:#5bbfff;margin-bottom:9px}
 .content{font-size:14px;line-height:1.5;min-height:22px;white-space:pre-wrap;overflow-wrap:anywhere}
-.footer{text-align:center;color:#506b87;font-size:10px;margin-top:18px}
+.clock{font-size:32px;font-weight:bold;letter-spacing:1px;color:#eaf6ff}
+.date{font-size:12px;color:#86a9c8;margin-top:5px}
+.weather-main{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.temp{font-size:38px;font-weight:bold;color:#eaf6ff}
+.weather-icon{font-size:38px}
+.weather-desc{font-size:12px;color:#8db6d9;margin-top:4px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:16px}
+.stat{background:#10223a;padding:10px 6px;border-radius:10px;text-align:center}
+.stat strong{display:block;font-size:17px;margin-top:5px}
+.stat small{font-size:10px;color:#8ba9c6}
+.refresh{background:transparent;color:#68c9ff;border:1px solid #214766;padding:9px;margin-top:12px}
+.footer{text-align:center;color:#506b87;font-size:10px;margin-top:17px}
 </style>
 </head>
-
 <body>
 <div class="app">
-  <header>
-    <div class="logo">ABNEX</div>
-    <div class="sub">PERSONAL AI SYSTEM</div>
-  </header>
+ <header>
+  <div class="logo">ABNEX</div>
+  <div class="sub">PERSONAL AI SYSTEM</div>
+ </header>
 
-  <div class="orb" id="orb"></div>
-  <div class="status" id="status">SYSTEM STANDBY</div>
+ <div class="orb" id="orb"></div>
+ <div class="status" id="status">SYSTEM STANDBY</div>
 
-  <button class="primary" id="enableBtn">ENABLE MICROPHONE</button>
-  <button class="secondary" id="voiceBtn">START VOICE</button>
-  <button class="stop" id="stopBtn">STOP LISTENING</button>
+ <div class="panel">
+  <div class="heading">LOCAL TIME · KANPUR</div>
+  <div class="clock" id="clock">--:--:--</div>
+  <div class="date" id="date">Loading date...</div>
+ </div>
 
-  <div class="panel">
-    <div class="heading">YOU SAID</div>
-    <div class="content" id="youSaid">Waiting for your voice...</div>
+ <div class="panel">
+  <div class="heading">LIVE WEATHER · KANPUR</div>
+  <div class="weather-main">
+   <div>
+    <div class="temp" id="temperature">--°C</div>
+    <div class="weather-desc" id="weatherDesc">Fetching weather...</div>
+   </div>
+   <div class="weather-icon" id="weatherIcon">🌤️</div>
   </div>
-
-  <div class="panel">
-    <div class="heading">ABNEX REPLIED</div>
-    <div class="content" id="reply">Your AI response will appear here.</div>
+  <div class="stats">
+   <div class="stat">
+    💧 <strong id="humidity">--%</strong>
+    <small>HUMIDITY</small>
+   </div>
+   <div class="stat">
+    🌬️ <strong id="wind">--</strong>
+    <small>WIND KM/H</small>
+   </div>
+   <div class="stat">
+    🌡️ <strong id="feels">--°</strong>
+    <small>FEELS LIKE</small>
+   </div>
   </div>
+  <button class="refresh" id="refreshWeather">↻ REFRESH WEATHER</button>
+  <div class="date" id="weatherUpdated">Waiting for weather data...</div>
+ </div>
 
-  <div class="footer">ABNEX CLOUD • ESP32 CONNECTED MODE</div>
+ <button class="primary" id="enableBtn">ENABLE MICROPHONE</button>
+ <button class="secondary" id="voiceBtn">START VOICE</button>
+ <button class="stop" id="stopBtn">STOP LISTENING</button>
+
+ <div class="panel">
+  <div class="heading">YOU SAID</div>
+  <div class="content" id="youSaid">Waiting for your voice...</div>
+ </div>
+ <div class="panel">
+  <div class="heading">ABNEX REPLIED</div>
+  <div class="content" id="reply">Your AI response will appear here.</div>
+ </div>
+ <div class="footer">ABNEX CLOUD • LIVE ENVIRONMENT SYSTEM</div>
 </div>
 
 <script>
-const API = "https://abnex.onrender.com";
+const API="https://abnex.onrender.com";
 
-const statusEl = document.getElementById("status");
-const youSaidEl = document.getElementById("youSaid");
-const replyEl = document.getElementById("reply");
-const orb = document.getElementById("orb");
+// Kanpur approximate city coordinates
+const LAT=26.4499;
+const LON=80.3319;
 
-const SpeechRecognition =
-  window.SpeechRecognition || window.webkitSpeechRecognition;
+const $=id=>document.getElementById(id);
+const statusEl=$("status");
+const youSaidEl=$("youSaid");
+const replyEl=$("reply");
+const orb=$("orb");
 
-let recognition = null;
-let enabled = false;
-let pttActive = false;
-let manualActive = false;
-let recognitionRunning = false;
-let shouldSubmit = false;
-let finalText = "";
-let interimText = "";
-let bridgeAfter = 0;
-let bridgeBusy = false;
-let restartTimer = null;
-let finishTimer = null;
-let lastSubmitted = "";
+const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
 
-function setStatus(text){
-  statusEl.textContent = text;
-}
+let recognition=null;
+let enabled=false;
+let pttActive=false;
+let manualActive=false;
+let recognitionRunning=false;
+let shouldSubmit=false;
+let finalText="";
+let interimText="";
+let bridgeAfter=0;
+let bridgeBusy=false;
+let restartTimer=null;
+let finishTimer=null;
+let lastSubmitted="";
 
+function setStatus(text){statusEl.textContent=text}
 function animate(active){
-  orb.style.filter = active ? "brightness(1.5)" : "brightness(1)";
-  orb.style.transform = active ? "scale(1.09)" : "scale(1)";
+ orb.style.filter=active?"brightness(1.5)":"brightness(1)";
+ orb.style.transform=active?"scale(1.09)":"scale(1)";
 }
 
-async function postJSON(path, body){
-  const response = await fetch(API + path,{
-    method:"POST",
-    headers:{"Content-Type":"application/json"},
-    body:JSON.stringify(body)
-  });
-  if(!response.ok) throw new Error("Server error: " + response.status);
-  return response.json().catch(()=>({}));
+// LIVE CLOCK
+function updateClock(){
+ const now=new Date();
+ $("clock").textContent=new Intl.DateTimeFormat("en-IN",{
+  timeZone:"Asia/Kolkata",
+  hour:"2-digit",minute:"2-digit",second:"2-digit",
+  hour12:true
+ }).format(now);
+
+ $("date").textContent=new Intl.DateTimeFormat("en-IN",{
+  timeZone:"Asia/Kolkata",
+  weekday:"long",day:"numeric",month:"long",year:"numeric"
+ }).format(now);
+}
+updateClock();
+setInterval(updateClock,1000);
+
+// LIVE WEATHER
+let weatherData=null;
+
+function weatherDescription(code){
+ const map={
+  0:["Clear sky","☀️"],
+  1:["Mainly clear","🌤️"],
+  2:["Partly cloudy","⛅"],
+  3:["Overcast","☁️"],
+  45:["Fog","🌫️"],
+  48:["Rime fog","🌫️"],
+  51:["Light drizzle","🌦️"],
+  53:["Drizzle","🌦️"],
+  55:["Heavy drizzle","🌧️"],
+  61:["Light rain","🌦️"],
+  63:["Moderate rain","🌧️"],
+  65:["Heavy rain","🌧️"],
+  71:["Light snowfall","🌨️"],
+  73:["Snowfall","🌨️"],
+  75:["Heavy snowfall","❄️"],
+  80:["Rain showers","🌦️"],
+  81:["Rain showers","🌧️"],
+  82:["Heavy rain showers","⛈️"],
+  95:["Thunderstorm","⛈️"],
+  96:["Thunderstorm with hail","⛈️"],
+  99:["Severe thunderstorm","⛈️"]
+ };
+ return map[code]||["Unknown conditions","🌡️"];
 }
 
-/* Ask browser for microphone permission, then release it.
-   SpeechRecognition itself will use the microphone afterwards. */
+async function loadWeather(){
+ $("weatherDesc").textContent="Updating live weather...";
+ try{
+  const url="https://api.open-meteo.com/v1/forecast"
+   +"?latitude="+LAT
+   +"&longitude="+LON
+   +"&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m"
+   +"&timezone=Asia%2FKolkata";
+
+  const response=await fetch(url,{cache:"no-store"});
+  if(!response.ok) throw new Error("Weather API unavailable");
+
+  const data=await response.json();
+  const c=data.current;
+  if(!c) throw new Error("No current weather data");
+
+  const [description,icon]=weatherDescription(c.weather_code);
+
+  weatherData={
+   location:"Kanpur, India",
+   temperature:c.temperature_2m,
+   feels_like:c.apparent_temperature,
+   humidity:c.relative_humidity_2m,
+   wind_speed:c.wind_speed_10m,
+   precipitation:c.precipitation,
+   condition:description,
+   time:c.time
+  };
+
+  $("temperature").textContent=Math.round(c.temperature_2m)+"°C";
+  $("weatherDesc").textContent=description;
+  $("weatherIcon").textContent=icon;
+  $("humidity").textContent=c.relative_humidity_2m+"%";
+  $("wind").textContent=c.wind_speed_10m;
+  $("feels").textContent=Math.round(c.apparent_temperature)+"°";
+  $("weatherUpdated").textContent="Last updated: "+new Date().toLocaleTimeString("en-IN");
+
+ }catch(error){
+  $("weatherDesc").textContent="Weather unavailable. Check internet.";
+  $("weatherUpdated").textContent=error.message;
+ }
+}
+
+loadWeather();
+setInterval(loadWeather,10*60*1000);
+$("refreshWeather").addEventListener("click",loadWeather);
+
+async function postJSON(path,body){
+ const response=await fetch(API+path,{
+  method:"POST",
+  headers:{"Content-Type":"application/json"},
+  body:JSON.stringify(body)
+ });
+ if(!response.ok) throw new Error("Server error: "+response.status);
+ return response.json().catch(()=>({}));
+}
+
 async function enableMicrophone(){
-  try{
-    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
-      throw new Error("Microphone permission is not supported here.");
-    }
+ try{
+  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)
+   throw new Error("Microphone not supported");
 
-    setStatus("REQUESTING MICROPHONE PERMISSION...");
-    const stream = await navigator.mediaDevices.getUserMedia({audio:true});
-    stream.getTracks().forEach(track=>track.stop());
+  setStatus("REQUESTING MICROPHONE...");
+  const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+  stream.getTracks().forEach(track=>track.stop());
 
-    if(!SpeechRecognition){
-      throw new Error("Speech Recognition is not supported. Use Chrome.");
-    }
+  if(!SpeechRecognition) throw new Error("Open this page in Google Chrome");
 
-    enabled = true;
-    setStatus("MICROPHONE READY");
-    document.getElementById("enableBtn").textContent = "MICROPHONE ENABLED";
-  }catch(error){
-    setStatus("MIC ERROR: " + error.message);
-  }
+  enabled=true;
+  setStatus("MICROPHONE READY");
+  $("enableBtn").textContent="MICROPHONE ENABLED";
+ }catch(error){
+  setStatus("MIC ERROR: "+error.message);
+ }
 }
 
 function createRecognition(){
-  if(!SpeechRecognition) return null;
+ const r=new SpeechRecognition();
+ r.lang="en-IN";
+ r.continuous=true;
+ r.interimResults=true;
+ r.maxAlternatives=1;
 
-  const r = new SpeechRecognition();
-  r.lang = "en-IN";
-  r.continuous = true;
-  r.interimResults = true;
-  r.maxAlternatives = 1;
+ r.onstart=()=>{
+  recognitionRunning=true;
+  animate(true);
+  setStatus("LISTENING...");
+ };
 
-  r.onstart = ()=>{
-    recognitionRunning = true;
-    animate(true);
-    setStatus("LISTENING...");
-  };
+ r.onresult=event=>{
+  let interim="";
+  for(let i=event.resultIndex;i<event.results.length;i++){
+   const transcript=event.results[i][0].transcript;
+   if(event.results[i].isFinal) finalText+=transcript+" ";
+   else interim+=transcript;
+  }
+  interimText=interim;
+  const display=(finalText+interimText).trim();
+  if(display) youSaidEl.textContent=display;
+ };
 
-  r.onresult = (event)=>{
-    let interim = "";
+ r.onerror=event=>{
+  if(event.error==="no-speech") setStatus("NO SPEECH DETECTED");
+  else if(event.error==="not-allowed"||event.error==="service-not-allowed"){
+   enabled=false;
+   setStatus("MIC PERMISSION BLOCKED");
+  }else if(event.error==="network") setStatus("CHROME SPEECH NETWORK ERROR");
+  else setStatus("VOICE ERROR: "+event.error);
+ };
 
-    for(let i=event.resultIndex;i<event.results.length;i++){
-      const transcript = event.results[i][0].transcript;
+ r.onend=()=>{
+  recognitionRunning=false;
+  animate(false);
 
-      if(event.results[i].isFinal){
-        finalText += transcript + " ";
-      }else{
-        interim += transcript;
-      }
-    }
+  if(pttActive||manualActive){
+   clearTimeout(restartTimer);
+   restartTimer=setTimeout(()=>{
+    if(pttActive||manualActive) startRecognition();
+   },350);
+   return;
+  }
 
-    interimText = interim;
-    const displayText = (finalText + interimText).trim();
-
-    if(displayText){
-      youSaidEl.textContent = displayText;
-    }
-  };
-
-  r.onerror = (event)=>{
-    if(event.error === "no-speech"){
-      setStatus("NO SPEECH DETECTED — SPEAK CLEARLY");
-    }else if(event.error === "not-allowed" || event.error === "service-not-allowed"){
-      enabled = false;
-      setStatus("MIC PERMISSION BLOCKED — ENABLE AGAIN");
-    }else if(event.error === "network"){
-      setStatus("CHROME SPEECH SERVICE NETWORK ERROR");
-    }else{
-      setStatus("VOICE ERROR: " + event.error);
-    }
-  };
-
-  r.onend = ()=>{
-    recognitionRunning = false;
-    animate(false);
-
-    if(pttActive || manualActive){
-      clearTimeout(restartTimer);
-      restartTimer = setTimeout(()=>{
-        if(pttActive || manualActive) startRecognition();
-      },350);
-      return;
-    }
-
-    if(shouldSubmit){
-      shouldSubmit = false;
-      clearTimeout(finishTimer);
-      const text = (finalText || interimText).trim();
-      finalText = "";
-      interimText = "";
-
-      if(text){
-        sendQuestion(text);
-      }else{
-        setStatus("NO SPEECH DETECTED — TRY AGAIN");
-      }
-    }else{
-      setStatus("SYSTEM READY");
-    }
-  };
-
-  return r;
+  if(shouldSubmit){
+   shouldSubmit=false;
+   clearTimeout(finishTimer);
+   const text=(finalText||interimText).trim();
+   finalText="";
+   interimText="";
+   if(text) sendQuestion(text);
+   else setStatus("NO SPEECH DETECTED — TRY AGAIN");
+  }else{
+   setStatus("SYSTEM READY");
+  }
+ };
+ return r;
 }
 
 function startRecognition(){
-  if(!enabled){
-    setStatus("FIRST ENABLE MICROPHONE");
-    return;
-  }
-  if(!recognition) recognition = createRecognition();
-  if(!recognition || recognitionRunning) return;
-
-  try{
-    recognition.start();
-  }catch(error){
-    // Chrome may still be closing the previous recognition session.
-    setTimeout(()=>{
-      if((pttActive || manualActive) && !recognitionRunning){
-        try{ recognition.start(); }catch(e){}
-      }
-    },500);
-  }
+ if(!enabled){setStatus("FIRST ENABLE MICROPHONE");return}
+ if(!recognition) recognition=createRecognition();
+ if(recognitionRunning)return;
+ try{recognition.start()}
+ catch(error){
+  setTimeout(()=>{
+   if((pttActive||manualActive)&&!recognitionRunning){
+    try{recognition.start()}catch(e){}
+   }
+  },500);
+ }
 }
 
 function beginListening(source){
-  if(!enabled){
-    setStatus("FIRST ENABLE MICROPHONE");
-    return;
-  }
+ if(!enabled){setStatus("FIRST ENABLE MICROPHONE");return}
+ clearTimeout(restartTimer);
+ clearTimeout(finishTimer);
+ finalText="";
+ interimText="";
+ shouldSubmit=false;
+ lastSubmitted="";
 
-  clearTimeout(restartTimer);
-  clearTimeout(finishTimer);
+ if(source==="ptt"){
+  pttActive=true;
+  manualActive=false;
+ }else{
+  manualActive=true;
+  pttActive=false;
+ }
 
-  finalText = "";
-  interimText = "";
-  shouldSubmit = false;
-  lastSubmitted = "";
-
-  if(source === "ptt"){
-    pttActive = true;
-    manualActive = false;
-  }else{
-    manualActive = true;
-    pttActive = false;
-  }
-
-  youSaidEl.textContent = "Listening...";
-  setStatus("LISTENING...");
-  startRecognition();
+ youSaidEl.textContent="Listening...";
+ setStatus("LISTENING...");
+ startRecognition();
 }
 
 function stopListening(){
-  pttActive = false;
-  manualActive = false;
-  clearTimeout(restartTimer);
+ pttActive=false;
+ manualActive=false;
+ clearTimeout(restartTimer);
 
-  if(!recognitionRunning){
-    const text = (finalText || interimText).trim();
-    finalText = "";
-    interimText = "";
-    if(text) sendQuestion(text);
-    else setStatus("NO SPEECH DETECTED — TRY AGAIN");
-    return;
+ if(!recognitionRunning){
+  const text=(finalText||interimText).trim();
+  finalText="";
+  interimText="";
+  if(text)sendQuestion(text);
+  else setStatus("NO SPEECH DETECTED — TRY AGAIN");
+  return;
+ }
+
+ shouldSubmit=true;
+ setStatus("PROCESSING YOUR VOICE...");
+ try{recognition.stop()}catch(error){}
+
+ clearTimeout(finishTimer);
+ finishTimer=setTimeout(()=>{
+  if(shouldSubmit){
+   shouldSubmit=false;
+   try{recognition.abort()}catch(e){}
+   const text=(finalText||interimText).trim();
+   finalText="";
+   interimText="";
+   if(text)sendQuestion(text);
+   else setStatus("NO SPEECH DETECTED — TRY AGAIN");
   }
+ },4000);
+}
 
-  shouldSubmit = true;
-  setStatus("PROCESSING YOUR VOICE...");
-  try{ recognition.stop(); }catch(error){}
+function getLiveContext(){
+ const now=new Date();
+ const time=new Intl.DateTimeFormat("en-IN",{
+  timeZone:"Asia/Kolkata",dateStyle:"full",timeStyle:"long"
+ }).format(now);
 
-  // Fallback in case Chrome does not fire onend.
-  clearTimeout(finishTimer);
-  finishTimer = setTimeout(()=>{
-    if(shouldSubmit){
-      shouldSubmit = false;
-      try{ recognition.abort(); }catch(e){}
-      const text = (finalText || interimText).trim();
-      finalText = "";
-      interimText = "";
-      if(text) sendQuestion(text);
-      else setStatus("NO SPEECH DETECTED — TRY AGAIN");
-    }
-  },4000);
+ let context="Current date and time in Kanpur: "+time+". ";
+
+ if(weatherData){
+  context+="Live weather in Kanpur: temperature "+weatherData.temperature+
+   " degrees Celsius, feels like "+weatherData.feels_like+
+   " degrees Celsius, humidity "+weatherData.humidity+
+   " percent, wind speed "+weatherData.wind_speed+
+   " km/h, condition "+weatherData.condition+
+   ", precipitation "+weatherData.precipitation+" mm. ";
+ }else{
+  context+="Live weather data is currently unavailable. ";
+ }
+ return context;
 }
 
 async function sendQuestion(text){
-  if(!text || text === lastSubmitted) return;
-  lastSubmitted = text;
+ if(!text||text===lastSubmitted)return;
+ lastSubmitted=text;
+ youSaidEl.textContent=text;
+ replyEl.textContent="Thinking...";
+ setStatus("ABNEX IS THINKING...");
+ animate(true);
 
-  youSaidEl.textContent = text;
-  replyEl.textContent = "Thinking...";
-  setStatus("ABNEX IS THINKING...");
-  animate(true);
+ try{
+  const liveQuestion=
+   "Answer the user's question naturally. Use the following live information when relevant. Do not invent live values. "+
+   getLiveContext()+
+   "User question: "+text;
 
-  try{
-    const data = await postJSON("/ask",{text:text});
-    const answer = data.reply || data.response || data.answer || "No reply received.";
+  const data=await postJSON("/ask",{text:liveQuestion});
+  const answer=data.reply||data.response||data.answer||"No reply received.";
 
-    replyEl.textContent = answer;
-    setStatus("ABNEX REPLIED");
-    animate(false);
+  replyEl.textContent=answer;
+  setStatus("ABNEX REPLIED");
+  animate(false);
 
-    // Send answer to ESP32 bridge so OLED can display it.
-    try{
-      await postJSON("/bridge/phone-message",{text:answer});
-    }catch(e){
-      console.log("ESP32 message bridge:",e.message);
-    }
+  try{await postJSON("/bridge/phone-message",{text:answer})}
+  catch(e){console.log("ESP32 bridge:",e.message)}
 
-    speak(answer);
-  }catch(error){
-    replyEl.textContent = "Could not connect to ABNEX server. Please try again.";
-    setStatus("SERVER CONNECTION ERROR");
-    animate(false);
-  }
+  speak(answer);
+ }catch(error){
+  replyEl.textContent="Could not connect to ABNEX server. Please try again.";
+  setStatus("SERVER CONNECTION ERROR");
+  animate(false);
+ }
 }
 
 function speak(text){
-  if(!("speechSynthesis" in window)) return;
-
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(text);
-  utterance.lang = "en-IN";
-  utterance.rate = 1;
-  utterance.pitch = 1;
-
-  utterance.onstart = ()=>setStatus("ABNEX SPEAKING...");
-  utterance.onend = ()=>setStatus("SYSTEM READY");
-
-  window.speechSynthesis.speak(utterance);
+ if(!("speechSynthesis" in window))return;
+ window.speechSynthesis.cancel();
+ const utterance=new SpeechSynthesisUtterance(text);
+ utterance.lang="en-IN";
+ utterance.rate=1;
+ utterance.pitch=1;
+ utterance.onstart=()=>setStatus("ABNEX SPEAKING...");
+ utterance.onend=()=>setStatus("SYSTEM READY");
+ window.speechSynthesis.speak(utterance);
 }
 
-/* ESP32 -> phone event bridge */
 async function pollPhoneBridge(){
-  if(bridgeBusy) return;
-  bridgeBusy = true;
+ if(bridgeBusy)return;
+ bridgeBusy=true;
+ try{
+  const response=await fetch(API+"/bridge/phone-poll?after="+bridgeAfter,{cache:"no-store"});
+  if(!response.ok)throw new Error("Bridge poll failed");
+  const data=await response.json();
+  const events=data.events||[];
 
-  try{
-    const response = await fetch(
-      API + "/bridge/phone-poll?after=" + bridgeAfter,
-      {cache:"no-store"}
-    );
-
-    if(!response.ok) throw new Error("Bridge poll failed");
-
-    const data = await response.json();
-    const events = data.events || [];
-
-    for(const event of events){
-      if(event.id !== undefined) bridgeAfter = Math.max(bridgeAfter,Number(event.id));
-
-      const type = event.type || event.event || event.action || event.command;
-
-      if(type === "ptt_start"){
-        beginListening("ptt");
-      }else if(type === "ptt_stop"){
-        if(pttActive) stopListening();
-      }
-    }
-
-    if(data.last_id !== undefined){
-      bridgeAfter = Math.max(bridgeAfter,Number(data.last_id));
-    }
-  }catch(error){
-    // Keep polling; temporary network errors are normal.
-  }finally{
-    bridgeBusy = false;
+  for(const event of events){
+   if(event.id!==undefined)bridgeAfter=Math.max(bridgeAfter,Number(event.id));
+   const type=event.type||event.event||event.action||event.command;
+   if(type==="ptt_start")beginListening("ptt");
+   else if(type==="ptt_stop"&&pttActive)stopListening();
   }
+  if(data.last_id!==undefined)bridgeAfter=Math.max(bridgeAfter,Number(data.last_id));
+ }catch(error){
+  // Continue polling after temporary connection errors.
+ }finally{
+  bridgeBusy=false;
+ }
 }
 
-document.getElementById("enableBtn").addEventListener("click",enableMicrophone);
-
-document.getElementById("voiceBtn").addEventListener("click",()=>{
-  if(manualActive || pttActive){
-    stopListening();
-  }else{
-    beginListening("manual");
+$("enableBtn").addEventListener("click",enableMicrophone);
+$("voiceBtn").addEventListener("click",()=>{
+ if(manualActive||pttActive)stopListening();
+ else beginListening("manual");
+});
+$("stopBtn").addEventListener("click",()=>{
+ if(manualActive||pttActive)stopListening();
+ else{
+  if(recognitionRunning){
+   shouldSubmit=false;
+   try{recognition.abort()}catch(e){}
   }
+  window.speechSynthesis.cancel();
+  setStatus("STOPPED");
+  animate(false);
+ }
 });
 
-document.getElementById("stopBtn").addEventListener("click",()=>{
-  if(manualActive || pttActive) stopListening();
-  else{
-    if(recognitionRunning){
-      shouldSubmit = false;
-      try{ recognition.abort(); }catch(e){}
-    }
-    window.speechSynthesis.cancel();
-    setStatus("STOPPED");
-    animate(false);
-  }
-});
-
-if(!SpeechRecognition){
-  setStatus("PLEASE OPEN THIS PAGE IN GOOGLE CHROME");
-}
-
+if(!SpeechRecognition)setStatus("PLEASE OPEN IN GOOGLE CHROME");
 setInterval(pollPhoneBridge,400);
 </script>
 </body>
