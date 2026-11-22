@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#101827">
+  <title>ABNEX Voice</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: #101827; color: #eef4ff; font-family: system-ui, Arial, sans-serif; display: grid; place-items: center; padding: 20px; }
+    main { width: min(100%, 460px); text-align: center; }
+    .logo { font-size: 14px; letter-spacing: 5px; color: #8eb8ff; font-weight: 800; }
+    h1 { margin: 8px 0 4px; font-size: 34px; }
+    .sub { color: #a9b7cc; font-size: 14px; margin-bottom: 26px; }
+    .orb { width: 150px; height: 150px; margin: 0 auto 22px; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle at 35% 30%, #74b5ff, #3156a8 55%, #18294d); box-shadow: 0 0 45px #397be866; transition: .2s; }
+    .orb.active { animation: pulse 1.5s infinite; }
+    @keyframes pulse { 50% { transform: scale(1.06); box-shadow: 0 0 65px #56a1ffb0; } }
+    .orb span { font-size: 44px; font-weight: 800; }
+    button, select { border: 0; border-radius: 14px; padding: 14px 18px; font-size: 16px; font-weight: 700; }
+    button { width: 100%; background: #78aaff; color: #071426; margin: 7px 0; }
+    button.secondary { background: #26364f; color: #eef4ff; }
+    button:disabled { opacity: .45; }
+    select { background: #26364f; color: white; margin: 0 0 12px; }
+    #status { min-height: 24px; color: #9fc4ff; margin: 14px 0; font-size: 14px; }
+    .panel { background: #1a2639; border: 1px solid #2a3a53; border-radius: 16px; padding: 14px; text-align: left; margin-top: 12px; }
+    .label { color: #8fa6c6; font-size: 11px; letter-spacing: 1.5px; font-weight: 800; margin-bottom: 6px; }
+    .content { min-height: 24px; line-height: 1.45; overflow-wrap: anywhere; }
+    .note { color: #8494aa; font-size: 12px; line-height: 1.5; margin-top: 18px; }
+  </style>
+</head>
+<body>
+<main>
+  <div class="logo">PERSONAL AI ASSISTANT</div>
+  <h1>ABNEX</h1>
+  <div class="sub">Voice Gateway · Cloud Connected</div>
+  <div class="orb" id="orb"><span>A</span></div>
+  <select id="language" aria-label="Speech language">
+    <option value="hi-IN">Hindi / Hinglish</option>
+    <option value="en-IN">English (India)</option>
+  </select>
+  <button id="start">START VOICE</button>
+  <button id="stop" class="secondary" disabled>STOP</button>
+  <div id="status">Ready. Connect your Bluetooth earphones, then tap Start Voice.</div>
+  <section class="panel"><div class="label">YOU SAID</div><div class="content" id="heard">—</div></section>
+  <section class="panel"><div class="label">ABNEX REPLIED</div><div class="content" id="reply">—</div></section>
+  <div class="note">Keep this page open and the phone screen awake during this first test. Bluetooth audio is routed by Android. Wake-word and locked-screen operation are not enabled yet.</div>
+</main>
+<script>
+(() => {
+  const API = 'https://abnex.onrender.com/ask';
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  const startBtn = document.getElementById('start');
+  const stopBtn = document.getElementById('stop');
+  const statusEl = document.getElementById('status');
+  const heardEl = document.getElementById('heard');
+  const replyEl = document.getElementById('reply');
+  const orb = document.getElementById('orb');
+  const language = document.getElementById('language');
+  let recognition = null;
+  let running = false;
+  let busy = false;
+  let speaking = false;
+
+  function status(message) { statusEl.textContent = message; }
+  function setRunning(value) {
+    running = value;
+    startBtn.disabled = value;
+    stopBtn.disabled = !value;
+    orb.classList.toggle('active', value);
+  }
+  function speak(text) {
+    return new Promise(resolve => {
+      if (!('speechSynthesis' in window)) { resolve(); return; }
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(text);
+      utterance.lang = language.value;
+      utterance.rate = 1;
+      utterance.onstart = () => { speaking = true; status('ABNEX is speaking…'); };
+      utterance.onend = () => { speaking = false; resolve(); };
+      utterance.onerror = () => { speaking = false; resolve(); };
+      window.speechSynthesis.speak(utterance);
+    });
+  }
+  async function askAI(text) {
+    busy = true;
+    heardEl.textContent = text;
+    status('Sending your message to ABNEX Cloud…');
+    try {
+      const response = await fetch(API, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+      });
+      if (!response.ok) throw new Error('Server returned HTTP ' + response.status);
+      const data = await response.json();
+      if (!data.reply) throw new Error('ABNEX returned an empty reply');
+      replyEl.textContent = data.reply;
+      await speak(data.reply);
+      status('Listening… Speak when ready.');
+    } catch (error) {
+      status('Connection issue: ' + error.message + '. Try again in a moment.');
+    } finally {
+      busy = false;
+      if (running && recognition) {
+        try { recognition.start(); } catch (_) {}
+      }
+    }
+  }
+  function createRecognition() {
+    recognition = new SpeechRecognition();
+    recognition.lang = language.value;
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    recognition.onstart = () => status('Listening… Speak now.');
+    recognition.onresult = event => {
+      const result = event.results[event.results.length - 1];
+      if (result && result.isFinal) {
+        const text = result[0].transcript.trim();
+        if (text) {
+          try { recognition.stop(); } catch (_) {}
+          askAI(text);
+        }
+      }
+    };
+    recognition.onerror = event => {
+      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+        status('Microphone permission denied. Allow microphone access in Chrome site settings.');
+        setRunning(false);
+      } else if (event.error !== 'no-speech' && event.error !== 'aborted') {
+        status('Voice input error: ' + event.error);
+      }
+    };
+    recognition.onend = () => {
+      if (running && !busy && !speaking) {
+        setTimeout(() => { if (running && !busy && !speaking) { try { recognition.start(); } catch (_) {} } }, 350);
+      }
+    };
+  }
+  startBtn.addEventListener('click', () => {
+    if (!SpeechRecognition) {
+      status('Speech recognition is not supported in this browser. Please use Google Chrome on Android.');
+      return;
+    }
+    if (!('speechSynthesis' in window)) {
+      status('This browser does not support speech output. Please use Google Chrome.');
+      return;
+    }
+    window.speechSynthesis.cancel();
+    createRecognition();
+    setRunning(true);
+    try { recognition.start(); }
+    catch (error) { setRunning(false); status('Could not start microphone: ' + error.message); }
+  });
+  stopBtn.addEventListener('click', () => {
+    setRunning(false);
+    if (recognition) { try { recognition.stop(); } catch (_) {} }
+    window.speechSynthesis.cancel();
+    status('Voice session stopped.');
+  });
+  language.addEventListener('change', () => {
+    if (running) {
+      setRunning(false);
+      if (recognition) { try { recognition.stop(); } catch (_) {} }
+      status('Language changed. Tap Start Voice again.');
+    }
+  });
+})();
+</script>
+</body>
+</html>
