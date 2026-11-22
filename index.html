@@ -1,600 +1,433 @@
 
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="theme-color" content="#101827">
-<title>ABNEX Voice</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ABNEX AI</title>
+
 <style>
 *{box-sizing:border-box}
-body{margin:0;min-height:100vh;background:#101827;color:#eef4ff;font-family:system-ui,Arial,sans-serif;display:grid;place-items:center;padding:20px}
-main{width:min(100%,460px);text-align:center}
-.logo{font-size:14px;letter-spacing:5px;color:#8eb8ff;font-weight:800}
-h1{margin:8px 0 4px;font-size:34px}
-.sub{color:#a9b7cc;font-size:14px;margin-bottom:26px}
-.orb{width:150px;height:150px;margin:0 auto 22px;border-radius:50%;display:grid;place-items:center;background:radial-gradient(circle at 35% 30%,#74b5ff,#3156a8 55%,#18294d);box-shadow:0 0 45px #397be866;transition:.2s}
-.orb.active{animation:pulse 1.5s infinite}
-@keyframes pulse{50%{transform:scale(1.06);box-shadow:0 0 65px #56a1ffb0}}
-.orb span{font-size:44px;font-weight:800}
-button,select{border:0;border-radius:14px;padding:14px 18px;font-size:16px;font-weight:700}
-button{width:100%;background:#78aaff;color:#071426;margin:7px 0}
-button.secondary{background:#26364f;color:#eef4ff}
-button:disabled{opacity:.45}
-select{background:#26364f;color:white;margin:0 0 12px}
-#status{min-height:24px;color:#9fc4ff;margin:14px 0;font-size:14px}
-.panel{background:#1a2639;border:1px solid #2a3a53;border-radius:16px;padding:14px;text-align:left;margin-top:12px}
-.label{color:#8fa6c6;font-size:11px;letter-spacing:1.5px;font-weight:800;margin-bottom:6px}
-.content{min-height:24px;line-height:1.45;overflow-wrap:anywhere}
-.note{color:#8494aa;font-size:12px;line-height:1.5;margin-top:18px}
-.meter{height:5px;background:#26364f;border-radius:10px;overflow:hidden;margin-top:12px}
-.meter-fill{height:100%;width:0%;background:#78aaff;transition:width .08s linear}
+body{
+  margin:0;background:#050914;color:#eaf6ff;
+  font-family:Arial,sans-serif;min-height:100vh;
+  display:flex;justify-content:center;align-items:center;
+  padding:18px
+}
+.app{
+  width:100%;max-width:440px;
+  background:linear-gradient(160deg,#101d32,#080e1b);
+  border:1px solid #183b59;border-radius:25px;
+  padding:24px;box-shadow:0 0 35px #0077ff22
+}
+header{text-align:center}
+.logo{
+  font-size:29px;font-weight:800;letter-spacing:5px;
+  color:#58caff;text-shadow:0 0 18px #168bff
+}
+.sub{font-size:11px;letter-spacing:3px;color:#7899b8;margin-top:7px}
+.orb{
+  width:125px;height:125px;border-radius:50%;
+  margin:28px auto 18px;
+  background:radial-gradient(circle at 35% 30%,#9beaff,#168bff 35%,#071b40 72%);
+  box-shadow:0 0 25px #168bff88,inset 0 0 25px #b9f3ff66;
+  animation:glow 2s infinite alternate
+}
+@keyframes glow{
+  from{transform:scale(.96);box-shadow:0 0 18px #168bff66}
+  to{transform:scale(1.04);box-shadow:0 0 38px #168bffcc}
+}
+.status{
+  text-align:center;color:#62d5ff;font-size:13px;
+  min-height:20px;margin:12px 0 22px
+}
+button{
+  width:100%;padding:15px;margin:6px 0;border:0;
+  border-radius:12px;font-size:14px;font-weight:bold;
+  cursor:pointer
+}
+.primary{background:#168bff;color:white}
+.secondary{background:#172a43;color:#bce8ff;border:1px solid #245477}
+.stop{background:#351c2b;color:#ff9ab4;border:1px solid #71344c}
+.panel{
+  margin-top:17px;padding:14px;background:#091525;
+  border:1px solid #19334c;border-radius:13px
+}
+.heading{font-size:10px;letter-spacing:2px;color:#5bbfff;margin-bottom:9px}
+.content{font-size:14px;line-height:1.5;min-height:22px;white-space:pre-wrap;overflow-wrap:anywhere}
+.footer{text-align:center;color:#506b87;font-size:10px;margin-top:18px}
 </style>
 </head>
+
 <body>
-<main>
-<div class="logo">PERSONAL AI ASSISTANT</div>
-<h1>ABNEX</h1>
-<div class="sub">Voice Gateway · Cloud Connected</div>
-<div class="orb" id="orb"><span>A</span></div>
+<div class="app">
+  <header>
+    <div class="logo">ABNEX</div>
+    <div class="sub">PERSONAL AI SYSTEM</div>
+  </header>
 
-<select id="language">
-<option value="hi-IN">Hindi / Hinglish</option>
-<option value="en-IN">English (India)</option>
-</select>
+  <div class="orb" id="orb"></div>
+  <div class="status" id="status">SYSTEM STANDBY</div>
 
-<button id="enable">ENABLE ESP32 CONTROL</button>
-<button id="start">START VOICE</button>
-<button id="stop" class="secondary" disabled>STOP</button>
+  <button class="primary" id="enableBtn">ENABLE MICROPHONE</button>
+  <button class="secondary" id="voiceBtn">START VOICE</button>
+  <button class="stop" id="stopBtn">STOP LISTENING</button>
 
-<div id="status">Connecting to ABNEX Cloud…</div>
-<div class="meter"><div class="meter-fill" id="meterFill"></div></div>
+  <div class="panel">
+    <div class="heading">YOU SAID</div>
+    <div class="content" id="youSaid">Waiting for your voice...</div>
+  </div>
 
-<section class="panel">
-<div class="label">YOU SAID</div>
-<div class="content" id="heard">—</div>
-</section>
+  <div class="panel">
+    <div class="heading">ABNEX REPLIED</div>
+    <div class="content" id="reply">Your AI response will appear here.</div>
+  </div>
 
-<section class="panel">
-<div class="label">ABNEX REPLIED</div>
-<div class="content" id="reply">—</div>
-</section>
-
-<div class="note">
-Keep this page open and the phone screen awake.
-Allow microphone permission in Chrome.
+  <div class="footer">ABNEX CLOUD • ESP32 CONNECTED MODE</div>
 </div>
-</main>
 
 <script>
-(() => {
-const API = 'https://abnex.onrender.com';
-const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+const API = "https://abnex.onrender.com";
 
-const $ = id => document.getElementById(id);
-const enableBtn = $('enable');
-const startBtn = $('start');
-const stopBtn = $('stop');
-const statusEl = $('status');
-const heardEl = $('heard');
-const replyEl = $('reply');
-const orb = $('orb');
-const language = $('language');
-const meterFill = $('meterFill');
+const statusEl = document.getElementById("status");
+const youSaidEl = document.getElementById("youSaid");
+const replyEl = document.getElementById("reply");
+const orb = document.getElementById("orb");
 
-let linkEnabled = false;
-let manualMode = false;
+const SpeechRecognition =
+  window.SpeechRecognition || window.webkitSpeechRecognition;
+
+let recognition = null;
+let enabled = false;
 let pttActive = false;
-let busy = false;
-let speaking = false;
-let recognitionSession = null;
+let manualActive = false;
+let recognitionRunning = false;
+let shouldSubmit = false;
+let finalText = "";
+let interimText = "";
+let bridgeAfter = 0;
+let bridgeBusy = false;
+let restartTimer = null;
 let finishTimer = null;
-let lastEventId = 0;
-let pollBusy = false;
+let lastSubmitted = "";
 
-let audioContext = null;
-let analyser = null;
-let microphoneStream = null;
-let audioBuffer = null;
-let telemetryTimer = null;
-let telemetryBusy = false;
-
-function status(message) {
-  statusEl.textContent = message;
+function setStatus(text){
+  statusEl.textContent = text;
 }
 
-function updateUI() {
-  const active = manualMode || pttActive;
-  startBtn.disabled = manualMode;
-  stopBtn.disabled = !active;
-  orb.classList.toggle('active', active || speaking);
+function animate(active){
+  orb.style.filter = active ? "brightness(1.5)" : "brightness(1)";
+  orb.style.transform = active ? "scale(1.09)" : "scale(1)";
 }
 
-// ---------------- MICROPHONE LEVEL METER ----------------
-
-async function initialiseAnalyser() {
-  if (analyser) return true;
-
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({audio:true});
-    microphoneStream = stream;
-
-    const AC = window.AudioContext || window.webkitAudioContext;
-    if (!AC) throw new Error('AudioContext unavailable');
-
-    audioContext = new AC();
-    if (audioContext.state === 'suspended') await audioContext.resume();
-
-    analyser = audioContext.createAnalyser();
-    analyser.fftSize = 1024;
-    analyser.smoothingTimeConstant = 0.35;
-
-    audioContext.createMediaStreamSource(stream).connect(analyser);
-    audioBuffer = new Float32Array(analyser.fftSize);
-    return true;
-  } catch (e) {
-    console.warn('Analyser:', e);
-    status('Mic level meter unavailable. Voice recognition can still work.');
-    return false;
-  }
-}
-
-function readLevel() {
-  if (!analyser || !audioBuffer) return 0;
-  analyser.getFloatTimeDomainData(audioBuffer);
-
-  let sum = 0;
-  for (let i = 0; i < audioBuffer.length; i++) {
-    sum += audioBuffer[i] * audioBuffer[i];
-  }
-
-  return Math.min(1, Math.sqrt(sum / audioBuffer.length) * 4.5);
-}
-
-async function sendTelemetry(level, active) {
-  if (telemetryBusy) return;
-  telemetryBusy = true;
-
-  try {
-    await fetch(API + '/bridge/voice-level', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({level, pitch:0, active})
-    });
-  } catch(e) {
-    console.warn('Telemetry:', e);
-  } finally {
-    telemetryBusy = false;
-  }
-}
-
-function startTelemetry() {
-  if (telemetryTimer || !analyser) return;
-
-  telemetryTimer = setInterval(() => {
-    if (!manualMode && !pttActive) return;
-    const level = readLevel();
-    meterFill.style.width = Math.round(level * 100) + '%';
-    sendTelemetry(level, true);
-  }, 150);
-}
-
-function stopTelemetry() {
-  if (telemetryTimer) clearInterval(telemetryTimer);
-  telemetryTimer = null;
-  meterFill.style.width = '0%';
-  sendTelemetry(0, false);
-}
-
-// ---------------- SPEECH OUTPUT ----------------
-
-function speak(text) {
-  return new Promise(resolve => {
-    if (!window.speechSynthesis) return resolve();
-
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = language.value;
-    utterance.rate = 1;
-
-    utterance.onstart = () => {
-      speaking = true;
-      updateUI();
-      status('ABNEX is speaking…');
-    };
-
-    utterance.onend = utterance.onerror = () => {
-      speaking = false;
-      updateUI();
-      resolve();
-    };
-
-    window.speechSynthesis.speak(utterance);
+async function postJSON(path, body){
+  const response = await fetch(API + path,{
+    method:"POST",
+    headers:{"Content-Type":"application/json"},
+    body:JSON.stringify(body)
   });
+  if(!response.ok) throw new Error("Server error: " + response.status);
+  return response.json().catch(()=>({}));
 }
 
-// ---------------- ESP32 REPLY ----------------
-
-async function sendReplyToESP32(question, answer) {
-  const response = await fetch(API + '/bridge/phone-message', {
-    method:'POST',
-    headers:{'Content-Type':'application/json'},
-    body:JSON.stringify({text:question, reply:answer})
-  });
-
-  if (!response.ok) {
-    throw new Error('ESP32 reply delivery HTTP ' + response.status);
-  }
-}
-
-// ---------------- AI REQUEST ----------------
-
-async function askAI(text) {
-  if (busy || !text.trim()) return;
-
-  busy = true;
-  heardEl.textContent = text;
-  replyEl.textContent = 'Thinking…';
-  status('Sending question to ABNEX Cloud…');
-
-  try {
-    const response = await fetch(API + '/ask', {
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({text})
-    });
-
-    if (!response.ok) {
-      throw new Error('AI server HTTP ' + response.status);
+/* Ask browser for microphone permission, then release it.
+   SpeechRecognition itself will use the microphone afterwards. */
+async function enableMicrophone(){
+  try{
+    if(!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia){
+      throw new Error("Microphone permission is not supported here.");
     }
 
-    const data = await response.json();
-    const answer = data.reply || data.answer;
+    setStatus("REQUESTING MICROPHONE PERMISSION...");
+    const stream = await navigator.mediaDevices.getUserMedia({audio:true});
+    stream.getTracks().forEach(track=>track.stop());
 
-    if (!answer) throw new Error('AI returned an empty answer');
+    if(!SpeechRecognition){
+      throw new Error("Speech Recognition is not supported. Use Chrome.");
+    }
+
+    enabled = true;
+    setStatus("MICROPHONE READY");
+    document.getElementById("enableBtn").textContent = "MICROPHONE ENABLED";
+  }catch(error){
+    setStatus("MIC ERROR: " + error.message);
+  }
+}
+
+function createRecognition(){
+  if(!SpeechRecognition) return null;
+
+  const r = new SpeechRecognition();
+  r.lang = "en-IN";
+  r.continuous = true;
+  r.interimResults = true;
+  r.maxAlternatives = 1;
+
+  r.onstart = ()=>{
+    recognitionRunning = true;
+    animate(true);
+    setStatus("LISTENING...");
+  };
+
+  r.onresult = (event)=>{
+    let interim = "";
+
+    for(let i=event.resultIndex;i<event.results.length;i++){
+      const transcript = event.results[i][0].transcript;
+
+      if(event.results[i].isFinal){
+        finalText += transcript + " ";
+      }else{
+        interim += transcript;
+      }
+    }
+
+    interimText = interim;
+    const displayText = (finalText + interimText).trim();
+
+    if(displayText){
+      youSaidEl.textContent = displayText;
+    }
+  };
+
+  r.onerror = (event)=>{
+    if(event.error === "no-speech"){
+      setStatus("NO SPEECH DETECTED — SPEAK CLEARLY");
+    }else if(event.error === "not-allowed" || event.error === "service-not-allowed"){
+      enabled = false;
+      setStatus("MIC PERMISSION BLOCKED — ENABLE AGAIN");
+    }else if(event.error === "network"){
+      setStatus("CHROME SPEECH SERVICE NETWORK ERROR");
+    }else{
+      setStatus("VOICE ERROR: " + event.error);
+    }
+  };
+
+  r.onend = ()=>{
+    recognitionRunning = false;
+    animate(false);
+
+    if(pttActive || manualActive){
+      clearTimeout(restartTimer);
+      restartTimer = setTimeout(()=>{
+        if(pttActive || manualActive) startRecognition();
+      },350);
+      return;
+    }
+
+    if(shouldSubmit){
+      shouldSubmit = false;
+      clearTimeout(finishTimer);
+      const text = (finalText || interimText).trim();
+      finalText = "";
+      interimText = "";
+
+      if(text){
+        sendQuestion(text);
+      }else{
+        setStatus("NO SPEECH DETECTED — TRY AGAIN");
+      }
+    }else{
+      setStatus("SYSTEM READY");
+    }
+  };
+
+  return r;
+}
+
+function startRecognition(){
+  if(!enabled){
+    setStatus("FIRST ENABLE MICROPHONE");
+    return;
+  }
+  if(!recognition) recognition = createRecognition();
+  if(!recognition || recognitionRunning) return;
+
+  try{
+    recognition.start();
+  }catch(error){
+    // Chrome may still be closing the previous recognition session.
+    setTimeout(()=>{
+      if((pttActive || manualActive) && !recognitionRunning){
+        try{ recognition.start(); }catch(e){}
+      }
+    },500);
+  }
+}
+
+function beginListening(source){
+  if(!enabled){
+    setStatus("FIRST ENABLE MICROPHONE");
+    return;
+  }
+
+  clearTimeout(restartTimer);
+  clearTimeout(finishTimer);
+
+  finalText = "";
+  interimText = "";
+  shouldSubmit = false;
+  lastSubmitted = "";
+
+  if(source === "ptt"){
+    pttActive = true;
+    manualActive = false;
+  }else{
+    manualActive = true;
+    pttActive = false;
+  }
+
+  youSaidEl.textContent = "Listening...";
+  setStatus("LISTENING...");
+  startRecognition();
+}
+
+function stopListening(){
+  pttActive = false;
+  manualActive = false;
+  clearTimeout(restartTimer);
+
+  if(!recognitionRunning){
+    const text = (finalText || interimText).trim();
+    finalText = "";
+    interimText = "";
+    if(text) sendQuestion(text);
+    else setStatus("NO SPEECH DETECTED — TRY AGAIN");
+    return;
+  }
+
+  shouldSubmit = true;
+  setStatus("PROCESSING YOUR VOICE...");
+  try{ recognition.stop(); }catch(error){}
+
+  // Fallback in case Chrome does not fire onend.
+  clearTimeout(finishTimer);
+  finishTimer = setTimeout(()=>{
+    if(shouldSubmit){
+      shouldSubmit = false;
+      try{ recognition.abort(); }catch(e){}
+      const text = (finalText || interimText).trim();
+      finalText = "";
+      interimText = "";
+      if(text) sendQuestion(text);
+      else setStatus("NO SPEECH DETECTED — TRY AGAIN");
+    }
+  },4000);
+}
+
+async function sendQuestion(text){
+  if(!text || text === lastSubmitted) return;
+  lastSubmitted = text;
+
+  youSaidEl.textContent = text;
+  replyEl.textContent = "Thinking...";
+  setStatus("ABNEX IS THINKING...");
+  animate(true);
+
+  try{
+    const data = await postJSON("/ask",{text:text});
+    const answer = data.reply || data.response || data.answer || "No reply received.";
 
     replyEl.textContent = answer;
+    setStatus("ABNEX REPLIED");
+    animate(false);
 
-    try {
-      await sendReplyToESP32(text, answer);
-    } catch(e) {
-      console.warn(e);
-      status('Answer received. ESP32 delivery issue: ' + e.message);
+    // Send answer to ESP32 bridge so OLED can display it.
+    try{
+      await postJSON("/bridge/phone-message",{text:answer});
+    }catch(e){
+      console.log("ESP32 message bridge:",e.message);
     }
 
-    await speak(answer);
-
-    if (!manualMode) status('Answer complete. Ready for next touch.');
-
-  } catch(e) {
-    replyEl.textContent = 'Connection error: ' + e.message;
-    status('ABNEX error: ' + e.message);
-  } finally {
-    busy = false;
-    updateUI();
-
-    if (manualMode && !speaking) {
-      setTimeout(() => {
-        if (manualMode && !busy && !speaking) startRecognition('manual');
-      }, 500);
-    }
+    speak(answer);
+  }catch(error){
+    replyEl.textContent = "Could not connect to ABNEX server. Please try again.";
+    setStatus("SERVER CONNECTION ERROR");
+    animate(false);
   }
 }
 
-// ---------------- SPEECH RECOGNITION FIX ----------------
+function speak(text){
+  if(!("speechSynthesis" in window)) return;
 
-function finishRecognition(session) {
-  if (!session || session.finished) return;
-  session.finished = true;
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
+  utterance.lang = "en-IN";
+  utterance.rate = 1;
+  utterance.pitch = 1;
 
-  if (finishTimer) {
-    clearTimeout(finishTimer);
-    finishTimer = null;
-  }
+  utterance.onstart = ()=>setStatus("ABNEX SPEAKING...");
+  utterance.onend = ()=>setStatus("SYSTEM READY");
 
-  if (recognitionSession === session) recognitionSession = null;
-
-  const text = (session.finalText || session.interimText || '').trim();
-
-  if (session.mode === 'permission') {
-    linkEnabled = true;
-    status('ESP32 control enabled. Touch sensor is ready.');
-    return;
-  }
-
-  if (text) {
-    heardEl.textContent = text;
-    status('Question received. Sending to ABNEX…');
-    askAI(text);
-  } else {
-    status('No speech detected. Please speak clearly and try again.');
-
-    if (manualMode) {
-      setTimeout(() => {
-        if (manualMode && !busy && !speaking) startRecognition('manual');
-      }, 700);
-    }
-  }
+  window.speechSynthesis.speak(utterance);
 }
 
-function startRecognition(mode) {
-  if (!SR) {
-    status('Speech recognition unavailable. Open this page in Chrome on Android.');
-    return;
-  }
+/* ESP32 -> phone event bridge */
+async function pollPhoneBridge(){
+  if(bridgeBusy) return;
+  bridgeBusy = true;
 
-  if (recognitionSession || busy || speaking) return;
+  try{
+    const response = await fetch(
+      API + "/bridge/phone-poll?after=" + bridgeAfter,
+      {cache:"no-store"}
+    );
 
-  let recognition;
+    if(!response.ok) throw new Error("Bridge poll failed");
 
-  try {
-    recognition = new SR();
-  } catch(e) {
-    status('Could not create speech recognition: ' + e.message);
-    return;
-  }
+    const data = await response.json();
+    const events = data.events || [];
 
-  const session = {
-    recognition,
-    mode,
-    finalText:'',
-    interimText:'',
-    stopping:false,
-    finished:false
-  };
+    for(const event of events){
+      if(event.id !== undefined) bridgeAfter = Math.max(bridgeAfter,Number(event.id));
 
-  recognitionSession = session;
-  recognition.lang = language.value;
-  recognition.continuous = false;
-  recognition.interimResults = true;
-  recognition.maxAlternatives = 1;
+      const type = event.type || event.event || event.action || event.command;
 
-  recognition.onstart = () => {
-    if (mode === 'permission') {
-      status('Checking microphone permission…');
-      setTimeout(() => {
-        if (recognitionSession === session) {
-          try { recognition.stop(); } catch(e) {}
-        }
-      }, 300);
-    } else {
-      status(mode === 'ptt' ? 'Listening… Speak now.' : 'Listening… Speak now.');
-    }
-  };
-
-  recognition.onresult = event => {
-    let finalText = '';
-    let interimText = '';
-
-    for (let i = 0; i < event.results.length; i++) {
-      const result = event.results[i];
-      const part = result[0].transcript.trim();
-      if (!part) continue;
-
-      if (result.isFinal) finalText += part + ' ';
-      else interimText += part + ' ';
-    }
-
-    if (finalText.trim()) session.finalText = finalText.trim();
-    if (interimText.trim()) session.interimText = interimText.trim();
-
-    const preview = (session.finalText || session.interimText).trim();
-    if (preview && mode !== 'permission') {
-      heardEl.textContent = preview;
-    }
-
-    // Manual voice mode can process as soon as a final result arrives.
-    if (mode === 'manual' && session.finalText && !session.stopping) {
-      session.stopping = true;
-      try { recognition.stop(); } catch(e) {}
-      finishRecognition(session);
-    }
-  };
-
-  recognition.onerror = event => {
-    console.warn('Speech recognition error:', event.error);
-
-    if (mode === 'permission') {
-      if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
-        status('Microphone permission denied. Allow microphone in Chrome settings.');
-        recognitionSession = null;
-        return;
+      if(type === "ptt_start"){
+        beginListening("ptt");
+      }else if(type === "ptt_stop"){
+        if(pttActive) stopListening();
       }
-      return;
     }
 
-    if (event.error !== 'aborted' && event.error !== 'no-speech') {
-      status('Speech recognition error: ' + event.error);
+    if(data.last_id !== undefined){
+      bridgeAfter = Math.max(bridgeAfter,Number(data.last_id));
     }
-  };
-
-  recognition.onend = () => {
-    if (mode === 'permission') {
-      finishRecognition(session);
-      return;
-    }
-
-    finishRecognition(session);
-  };
-
-  try {
-    recognition.start();
-  } catch(e) {
-    recognitionSession = null;
-    status('Recognition start failed: ' + e.message);
+  }catch(error){
+    // Keep polling; temporary network errors are normal.
+  }finally{
+    bridgeBusy = false;
   }
 }
 
-function stopRecognitionForPTT() {
-  const session = recognitionSession;
+document.getElementById("enableBtn").addEventListener("click",enableMicrophone);
 
-  if (!session || session.mode !== 'ptt') {
-    status('Finishing voice recognition…');
-    return;
+document.getElementById("voiceBtn").addEventListener("click",()=>{
+  if(manualActive || pttActive){
+    stopListening();
+  }else{
+    beginListening("manual");
   }
-
-  session.stopping = true;
-  status('Finishing voice recognition…');
-
-  try {
-    session.recognition.stop();
-  } catch(e) {
-    finishRecognition(session);
-    return;
-  }
-
-  // Safety timeout: never remain stuck on "Finishing".
-  finishTimer = setTimeout(() => {
-    if (recognitionSession === session && !session.finished) {
-      try { session.recognition.abort(); } catch(e) {}
-      finishRecognition(session);
-    }
-  }, 6000);
-}
-
-// ---------------- BUTTONS ----------------
-
-enableBtn.addEventListener('click', async () => {
-  if (!SR) {
-    status('Please open ABNEX in Google Chrome on Android.');
-    return;
-  }
-
-  if (linkEnabled) {
-    status('ESP32 control is already enabled.');
-    return;
-  }
-
-  status('Requesting microphone permission…');
-  await initialiseAnalyser();
-  startRecognition('permission');
 });
 
-startBtn.addEventListener('click', async () => {
-  if (!SR) {
-    status('Speech recognition unavailable. Use Chrome on Android.');
-    return;
+document.getElementById("stopBtn").addEventListener("click",()=>{
+  if(manualActive || pttActive) stopListening();
+  else{
+    if(recognitionRunning){
+      shouldSubmit = false;
+      try{ recognition.abort(); }catch(e){}
+    }
+    window.speechSynthesis.cancel();
+    setStatus("STOPPED");
+    animate(false);
   }
-
-  window.speechSynthesis.cancel();
-  manualMode = true;
-  pttActive = false;
-  updateUI();
-
-  await initialiseAnalyser();
-  startTelemetry();
-  startRecognition('manual');
 });
 
-stopBtn.addEventListener('click', () => {
-  manualMode = false;
-  pttActive = false;
-
-  if (recognitionSession) {
-    try { recognitionSession.recognition.abort(); } catch(e) {}
-    finishRecognition(recognitionSession);
-  }
-
-  stopTelemetry();
-  window.speechSynthesis.cancel();
-  speaking = false;
-  updateUI();
-  status('Voice session stopped.');
-});
-
-language.addEventListener('change', () => {
-  manualMode = false;
-  pttActive = false;
-
-  if (recognitionSession) {
-    try { recognitionSession.recognition.abort(); } catch(e) {}
-    recognitionSession = null;
-  }
-
-  stopTelemetry();
-  updateUI();
-  status('Language changed. Start voice again.');
-});
-
-// ---------------- ESP32 TOUCH EVENTS ----------------
-
-async function handlePhoneEvent(event) {
-  if (event === 'ptt_start') {
-    if (!linkEnabled) {
-      status('First enable ESP32 control and allow microphone permission.');
-      return;
-    }
-
-    if (busy || speaking || recognitionSession) {
-      status('ABNEX is busy. Please wait.');
-      return;
-    }
-
-    manualMode = false;
-    pttActive = true;
-    updateUI();
-
-    await initialiseAnalyser();
-    startTelemetry();
-    startRecognition('ptt');
-  }
-
-  if (event === 'ptt_stop') {
-    pttActive = false;
-    updateUI();
-    stopTelemetry();
-    stopRecognitionForPTT();
-  }
+if(!SpeechRecognition){
+  setStatus("PLEASE OPEN THIS PAGE IN GOOGLE CHROME");
 }
 
-// ---------------- PHONE BRIDGE ----------------
-
-async function pollPhone() {
-  if (pollBusy) return;
-  pollBusy = true;
-
-  try {
-    const response = await fetch(
-      API + '/bridge/phone-poll?after=' + lastEventId,
-      {cache:'no-store'}
-    );
-
-    if (!response.ok) throw new Error('Bridge HTTP ' + response.status);
-
-    const data = await response.json();
-
-    if (data.event_id > lastEventId) {
-      lastEventId = data.event_id;
-      if (data.event) await handlePhoneEvent(data.event);
-    }
-  } catch(e) {
-    console.warn('Bridge poll:', e);
-  } finally {
-    pollBusy = false;
-  }
-}
-
-async function initialiseBridge() {
-  try {
-    const response = await fetch(
-      API + '/bridge/phone-poll?after=2147483647',
-      {cache:'no-store'}
-    );
-
-    if (!response.ok) throw new Error('Bridge unavailable');
-
-    const data = await response.json();
-    lastEventId = data.event_id || 0;
-    status('Cloud connected. Enable ESP32 control to begin.');
-  } catch(e) {
-    status('Cloud connection issue. Check internet and refresh.');
-  }
-
-  setInterval(pollPhone, 500);
-}
-
-initialiseBridge();
-})();
+setInterval(pollPhoneBridge,400);
 </script>
 </body>
 </html>
