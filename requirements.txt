@@ -1,0 +1,8 @@
+fastapi
+uvicorn
+groq
+faster-whisper
+edge-tts
+numpy
+scipy
+requests
