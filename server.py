@@ -94,3 +94,165 @@ def transcribe_audio(audio_bytes):
         response_format="json",
         language="hi",
     )
+    text = (getattr(result, "text", "") or "").strip()
+    # Keep Hindi/Hinglish default; English phrases can still be understood by the AI.
+    return text, "hi"
+
+
+# ==============================
+# TEXT TO SPEECH
+# ==============================
+async def generate_speech(text, language):
+    voice = VOICES["hi"] if language == "hi" else VOICES["en"]
+    with tempfile.TemporaryDirectory() as folder:
+        mp3_path = os.path.join(folder, "reply.mp3")
+        pcm_path = os.path.join(folder, "reply.pcm")
+        communicate = edge_tts.Communicate(text, voice)
+        await communicate.save(mp3_path)
+        ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
+        subprocess.run(
+            [ffmpeg, "-y", "-i", mp3_path, "-f", "s16le", "-acodec", "pcm_s16le",
+             "-ac", "1", "-ar", str(SAMPLE_RATE), pcm_path],
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.PIPE,
+            check=True,
+        )
+        with open(pcm_path, "rb") as audio_file:
+            return audio_file.read()
+
+
+# ==============================
+# AUDIO PROCESSING
+# ==============================
+def process_audio(audio_bytes):
+    if len(audio_bytes) > 10 * 1024 * 1024:
+        raise ValueError("Audio is too large")
+    print("Audio received:", len(audio_bytes), "bytes")
+    user_text, language = transcribe_audio(audio_bytes)
+    print("USER:", user_text or "(not understood)")
+    if not user_text:
+        reply = "मुझे समझ नहीं आया, कृपया दोबारा बोलिए।"
+        servo = None
+        language = "hi"
+    else:
+        reply, servo = ask_groq(user_text)
+    pcm_audio = asyncio.run(generate_speech(reply, language))
+    return pcm_audio, reply, servo
+
+
+# ==============================
+# TEXT CHAT ENDPOINT
+# ==============================
+@app.post("/ask")
+async def ask(request: Request):
+    try:
+        body = await request.json()
+        user_text = str(body.get("text", "")).strip()
+        if not user_text:
+            raise HTTPException(status_code=400, detail="Text is required")
+        if len(user_text) > 2000:
+            raise HTTPException(status_code=413, detail="Text is too long")
+        reply, servo = await run_in_threadpool(ask_groq, user_text)
+        return {"status": "success", "reply": reply, "servo": servo}
+    except HTTPException:
+        raise
+    except Exception as error:
+        print("ASK ERROR:", repr(error))
+        raise HTTPException(status_code=502, detail="ABNEX could not generate a reply")
+
+
+# ==============================
+# PHONE <-> ESP32 BRIDGE
+# ==============================
+@app.post("/bridge/device-event")
+async def bridge_device_event(request: Request):
+    body = await request.json()
+    event = str(body.get("event", "")).strip()
+    if event not in ("ptt_start", "ptt_stop"):
+        raise HTTPException(status_code=400, detail="Invalid device event")
+    with bridge_lock:
+        bridge_state["device_event_id"] += 1
+        bridge_state["device_event"] = event
+        event_id = bridge_state["device_event_id"]
+    return {"status": "ok", "event_id": event_id}
+
+
+@app.get("/bridge/phone-poll")
+async def bridge_phone_poll(request: Request):
+    try:
+        after = int(request.query_params.get("after", "0"))
+    except ValueError:
+        after = 0
+    with bridge_lock:
+        changed = bridge_state["device_event_id"] > after
+        return {
+            "event_id": bridge_state["device_event_id"],
+            "event": bridge_state["device_event"] if changed else ""
+        }
+
+
+@app.post("/bridge/phone-message")
+async def bridge_phone_message(request: Request):
+    body = await request.json()
+    user_text = str(body.get("text", "")).strip()[:2000]
+    reply = str(body.get("reply", "")).strip()[:4000]
+    if not reply:
+        raise HTTPException(status_code=400, detail="Reply is required")
+    with bridge_lock:
+        bridge_state["phone_message_id"] += 1
+        bridge_state["phone_text"] = user_text
+        bridge_state["phone_reply"] = reply
+        message_id = bridge_state["phone_message_id"]
+    return {"status": "ok", "message_id": message_id}
+
+
+@app.get("/bridge/device-poll")
+async def bridge_device_poll(request: Request):
+    try:
+        after = int(request.query_params.get("after", "0"))
+    except ValueError:
+        after = 0
+    with bridge_lock:
+        changed = bridge_state["phone_message_id"] > after
+        return {
+            "message_id": bridge_state["phone_message_id"],
+            "text": bridge_state["phone_text"] if changed else "",
+            "reply": bridge_state["phone_reply"] if changed else ""
+        }
+
+
+# ==============================
+# HEALTH CHECK
+# ==============================
+@app.get("/health")
+def health():
+    return {
+        "status": "ABNEX CLOUD server OK",
+        "model": GROQ_MODEL,
+        "speech_recognition": STT_MODEL,
+        "groq_api_configured": True,
+    }
+
+
+# ==============================
+# AUDIO TALK ENDPOINT
+# ==============================
+@app.post("/talk")
+async def talk(request: Request):
+    audio_bytes = await request.body()
+    if len(audio_bytes) < 8000:
+        raise HTTPException(status_code=400, detail="Audio too short")
+    try:
+        pcm_audio, reply, servo = await run_in_threadpool(process_audio, audio_bytes)
+        headers = {
+            "X-Reply-Text": urllib.parse.quote(reply, safe=""),
+            "X-Servo": str(servo) if servo is not None else "none",
+        }
+        return Response(content=pcm_audio, media_type="application/octet-stream", headers=headers)
+    except Exception as error:
+        print("AUDIO ERROR:", repr(error))
+        raise HTTPException(status_code=502, detail="Audio processing failed")
+
+
+if __name__ == "__main__":
+    uvicorn.run(app, host="0.0.0.0", port=PORT)
