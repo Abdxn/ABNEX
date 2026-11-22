@@ -53,6 +53,7 @@ bridge_lock = Lock()
 bridge_state = {
     "device_event_id": 0,
     "device_event": "",
+    "device_events": [],
 
     "phone_message_id": 0,
     "phone_text": "",
@@ -101,7 +102,6 @@ Otherwise servo must be null.
 Do not include markdown fences.
 """
 
-
 # ==============================
 # GROQ AI
 # ==============================
@@ -110,7 +110,6 @@ def ask_groq(user_text):
 
     completion = groq_client.chat.completions.create(
         model=GROQ_MODEL,
-
         messages=[
             {
                 "role": "system",
@@ -121,10 +120,8 @@ def ask_groq(user_text):
                 "content": user_text
             },
         ],
-
         temperature=0.6,
         max_completion_tokens=500,
-
         response_format={
             "type": "json_object"
         },
@@ -135,10 +132,7 @@ def ask_groq(user_text):
     try:
         data = json.loads(raw)
 
-        reply = str(
-            data.get("reply", "")
-        ).strip()
-
+        reply = str(data.get("reply", "")).strip()
         servo = data.get("servo")
 
         if not reply:
@@ -161,13 +155,11 @@ def ask_groq(user_text):
         TypeError,
         ValueError
     ):
-
         return (
             raw.strip() or
             "Sorry, I could not prepare a response.",
             None
         )
-
 
 # ==============================
 # SPEECH RECOGNITION
@@ -178,22 +170,18 @@ def transcribe_audio(audio_bytes):
     wav_buffer = io.BytesIO()
 
     with wave.open(wav_buffer, "wb") as wav_file:
-
         wav_file.setnchannels(1)
         wav_file.setsampwidth(2)
         wav_file.setframerate(SAMPLE_RATE)
-
         wav_file.writeframes(audio_bytes)
 
     wav_buffer.seek(0)
 
     result = groq_client.audio.transcriptions.create(
-
         file=(
             "abnex_audio.wav",
             wav_buffer.read()
         ),
-
         model=STT_MODEL,
         response_format="json",
         language="hi",
@@ -204,7 +192,6 @@ def transcribe_audio(audio_bytes):
     ).strip()
 
     return text, "hi"
-
 
 # ==============================
 # TEXT TO SPEECH
@@ -220,21 +207,10 @@ async def generate_speech(text, language):
 
     with tempfile.TemporaryDirectory() as folder:
 
-        mp3_path = os.path.join(
-            folder,
-            "reply.mp3"
-        )
+        mp3_path = os.path.join(folder, "reply.mp3")
+        pcm_path = os.path.join(folder, "reply.pcm")
 
-        pcm_path = os.path.join(
-            folder,
-            "reply.pcm"
-        )
-
-        communicate = edge_tts.Communicate(
-            text,
-            voice
-        )
-
+        communicate = edge_tts.Communicate(text, voice)
         await communicate.save(mp3_path)
 
         ffmpeg = imageio_ffmpeg.get_ffmpeg_exe()
@@ -263,7 +239,6 @@ async def generate_speech(text, language):
         with open(pcm_path, "rb") as audio_file:
             return audio_file.read()
 
-
 # ==============================
 # AUDIO PROCESSING
 # ==============================
@@ -273,33 +248,20 @@ def process_audio(audio_bytes):
     if len(audio_bytes) > 10 * 1024 * 1024:
         raise ValueError("Audio is too large")
 
-    print(
-        "Audio received:",
-        len(audio_bytes),
-        "bytes"
-    )
+    print("Audio received:", len(audio_bytes), "bytes")
 
-    user_text, language = transcribe_audio(
-        audio_bytes
-    )
+    user_text, language = transcribe_audio(audio_bytes)
 
-    print(
-        "USER:",
-        user_text or "(not understood)"
-    )
+    print("USER:", user_text or "(not understood)")
 
     if not user_text:
-
         reply = (
             "मुझे समझ नहीं आया, "
             "कृपया दोबारा बोलिए।"
         )
-
         servo = None
         language = "hi"
-
     else:
-
         reply, servo = ask_groq(user_text)
 
     pcm_audio = asyncio.run(
@@ -307,7 +269,6 @@ def process_audio(audio_bytes):
     )
 
     return pcm_audio, reply, servo
-
 
 # ==============================
 # TEXT CHAT ENDPOINT
@@ -317,7 +278,6 @@ def process_audio(audio_bytes):
 async def ask(request: Request):
 
     try:
-
         body = await request.json()
 
         user_text = str(
@@ -351,7 +311,6 @@ async def ask(request: Request):
         raise
 
     except Exception as error:
-
         print("ASK ERROR:", repr(error))
 
         raise HTTPException(
@@ -359,9 +318,8 @@ async def ask(request: Request):
             detail="ABNEX could not generate a reply"
         )
 
-
 # ==============================
-# PHONE -> ESP32 DEVICE EVENTS
+# ESP32 -> PHONE DEVICE EVENTS
 # ==============================
 
 @app.post("/bridge/device-event")
@@ -373,11 +331,7 @@ async def bridge_device_event(request: Request):
         body.get("event", "")
     ).strip()
 
-    if event not in (
-        "ptt_start",
-        "ptt_stop"
-    ):
-
+    if event not in ("ptt_start", "ptt_stop"):
         raise HTTPException(
             status_code=400,
             detail="Invalid device event"
@@ -387,15 +341,25 @@ async def bridge_device_event(request: Request):
 
         bridge_state["device_event_id"] += 1
 
+        event_id = bridge_state["device_event_id"]
+
         bridge_state["device_event"] = event
 
-        event_id = bridge_state["device_event_id"]
+        bridge_state["device_events"].append({
+            "id": event_id,
+            "type": event
+        })
+
+        bridge_state["device_events"] = (
+            bridge_state["device_events"][-100:]
+        )
+
+    print("DEVICE EVENT:", event, "ID:", event_id)
 
     return {
         "status": "ok",
         "event_id": event_id
     }
-
 
 # ==============================
 # PHONE POLL
@@ -405,36 +369,29 @@ async def bridge_device_event(request: Request):
 async def bridge_phone_poll(request: Request):
 
     try:
-
         after = int(
-            request.query_params.get(
-                "after",
-                "0"
-            )
+            request.query_params.get("after", "0")
         )
-
     except ValueError:
         after = 0
 
     with bridge_lock:
 
-        changed = (
-            bridge_state["device_event_id"] > after
-        )
+        events = [
+            event.copy()
+            for event in bridge_state["device_events"]
+            if event["id"] > after
+        ]
 
-        return {
+        last_id = bridge_state["device_event_id"]
 
-            "event_id":
-                bridge_state["device_event_id"],
-
-            "event":
-                bridge_state["device_event"]
-                if changed else ""
-        }
-
+    return {
+        "events": events,
+        "last_id": last_id
+    }
 
 # ==============================
-# PHONE SENDS AI REPLY
+# PHONE SENDS AI REPLY TO ESP32
 # ==============================
 
 @app.post("/bridge/phone-message")
@@ -443,15 +400,14 @@ async def bridge_phone_message(request: Request):
     body = await request.json()
 
     user_text = str(
-        body.get("text", "")
+        body.get("user_text", "")
     ).strip()[:2000]
 
     reply = str(
-        body.get("reply", "")
+        body.get("reply") or body.get("text", "")
     ).strip()[:4000]
 
     if not reply:
-
         raise HTTPException(
             status_code=400,
             detail="Reply is required"
@@ -466,11 +422,12 @@ async def bridge_phone_message(request: Request):
 
         message_id = bridge_state["phone_message_id"]
 
+    print("PHONE REPLY SAVED:", message_id)
+
     return {
         "status": "ok",
         "message_id": message_id
     }
-
 
 # ==============================
 # PHONE VOICE TELEMETRY
@@ -480,42 +437,28 @@ async def bridge_phone_message(request: Request):
 async def bridge_voice_level(request: Request):
 
     try:
-
         body = await request.json()
 
-        level = float(
-            body.get("level", 0)
-        )
-
-        pitch = float(
-            body.get("pitch", 0)
-        )
-
-        active = bool(
-            body.get("active", False)
-        )
+        level = float(body.get("level", 0))
+        pitch = float(body.get("pitch", 0))
+        active = bool(body.get("active", False))
 
         if not (
             0.0 <= level <= 1.0
             and 0.0 <= pitch <= 1000.0
         ):
-
             raise HTTPException(
                 status_code=400,
                 detail="Invalid voice telemetry"
             )
 
         with bridge_lock:
-
             bridge_state["voice_level"] = level
             bridge_state["voice_pitch"] = pitch
-
             bridge_state["voice_timestamp"] = time.time()
             bridge_state["voice_active"] = active
 
-        return {
-            "status": "ok"
-        }
+        return {"status": "ok"}
 
     except HTTPException:
         raise
@@ -525,12 +468,10 @@ async def bridge_voice_level(request: Request):
         TypeError,
         json.JSONDecodeError
     ):
-
         raise HTTPException(
             status_code=400,
             detail="Invalid telemetry data"
         )
-
 
 # ==============================
 # ESP32 POLL
@@ -540,14 +481,9 @@ async def bridge_voice_level(request: Request):
 async def bridge_device_poll(request: Request):
 
     try:
-
         after = int(
-            request.query_params.get(
-                "after",
-                "0"
-            )
+            request.query_params.get("after", "0")
         )
-
     except ValueError:
         after = 0
 
@@ -557,46 +493,39 @@ async def bridge_device_poll(request: Request):
             bridge_state["phone_message_id"] > after
         )
 
-        # Voice telemetry expires after 1 second.
         telemetry_fresh = (
             time.time() -
             bridge_state["voice_timestamp"]
         ) < 1.0
 
         if telemetry_fresh:
-
             voice_level = bridge_state["voice_level"]
             voice_pitch = bridge_state["voice_pitch"]
-
         else:
-
             voice_level = 0.0
             voice_pitch = 0.0
 
         return {
+            "message_id": bridge_state["phone_message_id"],
 
-            "message_id":
-                bridge_state["phone_message_id"],
-
-            "text":
+            "text": (
                 bridge_state["phone_text"]
-                if changed else "",
+                if changed else ""
+            ),
 
-            "reply":
+            "reply": (
                 bridge_state["phone_reply"]
-                if changed else "",
+                if changed else ""
+            ),
 
-            "voice_level":
-                voice_level,
+            "voice_level": voice_level,
+            "voice_pitch": voice_pitch,
 
-            "voice_pitch":
-                voice_pitch,
-
-            "voice_active":
+            "voice_active": (
                 bridge_state["voice_active"]
                 if telemetry_fresh else False
+            )
         }
-
 
 # ==============================
 # HEALTH CHECK
@@ -606,23 +535,12 @@ async def bridge_device_poll(request: Request):
 def health():
 
     return {
-
-        "status":
-            "ABNEX CLOUD server OK",
-
-        "model":
-            GROQ_MODEL,
-
-        "speech_recognition":
-            STT_MODEL,
-
-        "groq_api_configured":
-            True,
-
-        "voice_telemetry":
-            True
+        "status": "ABNEX CLOUD server OK",
+        "model": GROQ_MODEL,
+        "speech_recognition": STT_MODEL,
+        "groq_api_configured": True,
+        "voice_telemetry": True
     }
-
 
 # ==============================
 # AUDIO TALK ENDPOINT
@@ -634,31 +552,27 @@ async def talk(request: Request):
     audio_bytes = await request.body()
 
     if len(audio_bytes) < 8000:
-
         raise HTTPException(
             status_code=400,
             detail="Audio too short"
         )
 
     try:
-
         pcm_audio, reply, servo = await run_in_threadpool(
             process_audio,
             audio_bytes
         )
 
         headers = {
-
-            "X-Reply-Text":
-                urllib.parse.quote(
-                    reply,
-                    safe=""
-                ),
-
-            "X-Servo":
+            "X-Reply-Text": urllib.parse.quote(
+                reply,
+                safe=""
+            ),
+            "X-Servo": (
                 str(servo)
                 if servo is not None
-                else "none",
+                else "none"
+            ),
         }
 
         return Response(
@@ -668,14 +582,12 @@ async def talk(request: Request):
         )
 
     except Exception as error:
-
         print("AUDIO ERROR:", repr(error))
 
         raise HTTPException(
             status_code=502,
             detail="Audio processing failed"
         )
-
 
 # ==============================
 # START SERVER
