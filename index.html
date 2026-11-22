@@ -5,6 +5,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>ABNEX AI</title>
+
 <style>
 *{box-sizing:border-box}
 body{
@@ -52,8 +53,10 @@ button{
 .footer{text-align:center;color:#506b87;font-size:10px;margin-top:17px}
 </style>
 </head>
+
 <body>
 <div class="app">
+
  <header>
   <div class="logo">ABNEX</div>
   <div class="sub">PERSONAL AI SYSTEM</div>
@@ -77,6 +80,7 @@ button{
    </div>
    <div class="weather-icon" id="weatherIcon">🌤️</div>
   </div>
+
   <div class="stats">
    <div class="stat">
     💧 <strong id="humidity">--%</strong>
@@ -91,6 +95,7 @@ button{
     <small>FEELS LIKE</small>
    </div>
   </div>
+
   <button class="refresh" id="refreshWeather">↻ REFRESH WEATHER</button>
   <div class="date" id="weatherUpdated">Waiting for weather data...</div>
  </div>
@@ -103,27 +108,30 @@ button{
   <div class="heading">YOU SAID</div>
   <div class="content" id="youSaid">Waiting for your voice...</div>
  </div>
+
  <div class="panel">
   <div class="heading">ABNEX REPLIED</div>
   <div class="content" id="reply">Your AI response will appear here.</div>
  </div>
+
  <div class="footer">ABNEX CLOUD • LIVE ENVIRONMENT SYSTEM</div>
 </div>
 
 <script>
 const API="https://abnex.onrender.com";
 
-// Kanpur approximate city coordinates
 const LAT=26.4499;
 const LON=80.3319;
 
 const $=id=>document.getElementById(id);
+
 const statusEl=$("status");
 const youSaidEl=$("youSaid");
 const replyEl=$("reply");
 const orb=$("orb");
 
-const SpeechRecognition=window.SpeechRecognition||window.webkitSpeechRecognition;
+const SpeechRecognition=
+ window.SpeechRecognition||window.webkitSpeechRecognition;
 
 let recognition=null;
 let enabled=false;
@@ -131,41 +139,104 @@ let pttActive=false;
 let manualActive=false;
 let recognitionRunning=false;
 let shouldSubmit=false;
+
 let finalText="";
 let interimText="";
+
 let bridgeAfter=0;
 let bridgeBusy=false;
+let bridgeReady=false;
+let bridgeQueue=Promise.resolve();
+
 let restartTimer=null;
 let finishTimer=null;
 let lastSubmitted="";
 
-function setStatus(text){statusEl.textContent=text}
+let recognitionStartResolver=null;
+
+// ==============================
+// STATUS AND ANIMATION
+// ==============================
+
+function setStatus(text){
+ statusEl.textContent=text;
+}
+
 function animate(active){
  orb.style.filter=active?"brightness(1.5)":"brightness(1)";
  orb.style.transform=active?"scale(1.09)":"scale(1)";
 }
 
-// LIVE CLOCK
-function updateClock(){
- const now=new Date();
- $("clock").textContent=new Intl.DateTimeFormat("en-IN",{
-  timeZone:"Asia/Kolkata",
-  hour:"2-digit",minute:"2-digit",second:"2-digit",
-  hour12:true
- }).format(now);
+// ==============================
+// RECOGNITION START WAIT
+// ==============================
 
- $("date").textContent=new Intl.DateTimeFormat("en-IN",{
-  timeZone:"Asia/Kolkata",
-  weekday:"long",day:"numeric",month:"long",year:"numeric"
- }).format(now);
+function waitForRecognitionStart(timeout=3000){
+
+ if(recognitionRunning){
+  return Promise.resolve(true);
+ }
+
+ return new Promise(resolve=>{
+
+  let completed=false;
+
+  const finish=value=>{
+   if(completed)return;
+   completed=true;
+
+   clearTimeout(timer);
+   recognitionStartResolver=null;
+
+   resolve(value);
+  };
+
+  const timer=setTimeout(()=>{
+   finish(false);
+  },timeout);
+
+  recognitionStartResolver=finish;
+ });
 }
+
+// ==============================
+// LIVE CLOCK
+// ==============================
+
+function updateClock(){
+
+ const now=new Date();
+
+ $("clock").textContent=
+  new Intl.DateTimeFormat("en-IN",{
+   timeZone:"Asia/Kolkata",
+   hour:"2-digit",
+   minute:"2-digit",
+   second:"2-digit",
+   hour12:true
+  }).format(now);
+
+ $("date").textContent=
+  new Intl.DateTimeFormat("en-IN",{
+   timeZone:"Asia/Kolkata",
+   weekday:"long",
+   day:"numeric",
+   month:"long",
+   year:"numeric"
+  }).format(now);
+}
+
 updateClock();
 setInterval(updateClock,1000);
 
+// ==============================
 // LIVE WEATHER
+// ==============================
+
 let weatherData=null;
 
 function weatherDescription(code){
+
  const map={
   0:["Clear sky","☀️"],
   1:["Mainly clear","🌤️"],
@@ -189,24 +260,35 @@ function weatherDescription(code){
   96:["Thunderstorm with hail","⛈️"],
   99:["Severe thunderstorm","⛈️"]
  };
+
  return map[code]||["Unknown conditions","🌡️"];
 }
 
 async function loadWeather(){
+
  $("weatherDesc").textContent="Updating live weather...";
+
  try{
-  const url="https://api.open-meteo.com/v1/forecast"
-   +"?latitude="+LAT
-   +"&longitude="+LON
-   +"&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m"
-   +"&timezone=Asia%2FKolkata";
+
+  const url=
+   "https://api.open-meteo.com/v1/forecast"+
+   "?latitude="+LAT+
+   "&longitude="+LON+
+   "&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,wind_speed_10m"+
+   "&timezone=Asia%2FKolkata";
 
   const response=await fetch(url,{cache:"no-store"});
-  if(!response.ok) throw new Error("Weather API unavailable");
+
+  if(!response.ok){
+   throw new Error("Weather API unavailable");
+  }
 
   const data=await response.json();
   const c=data.current;
-  if(!c) throw new Error("No current weather data");
+
+  if(!c){
+   throw new Error("No current weather data");
+  }
 
   const [description,icon]=weatherDescription(c.weather_code);
 
@@ -221,290 +303,696 @@ async function loadWeather(){
    time:c.time
   };
 
-  $("temperature").textContent=Math.round(c.temperature_2m)+"°C";
+  $("temperature").textContent=
+   Math.round(c.temperature_2m)+"°C";
+
   $("weatherDesc").textContent=description;
   $("weatherIcon").textContent=icon;
-  $("humidity").textContent=c.relative_humidity_2m+"%";
+
+  $("humidity").textContent=
+   c.relative_humidity_2m+"%";
+
   $("wind").textContent=c.wind_speed_10m;
-  $("feels").textContent=Math.round(c.apparent_temperature)+"°";
-  $("weatherUpdated").textContent="Last updated: "+new Date().toLocaleTimeString("en-IN");
+
+  $("feels").textContent=
+   Math.round(c.apparent_temperature)+"°";
+
+  $("weatherUpdated").textContent=
+   "Last updated: "+new Date().toLocaleTimeString("en-IN");
 
  }catch(error){
-  $("weatherDesc").textContent="Weather unavailable. Check internet.";
+
+  $("weatherDesc").textContent=
+   "Weather unavailable. Check internet.";
+
   $("weatherUpdated").textContent=error.message;
  }
 }
 
 loadWeather();
 setInterval(loadWeather,10*60*1000);
+
 $("refreshWeather").addEventListener("click",loadWeather);
 
+// ==============================
+// SERVER REQUEST
+// ==============================
+
 async function postJSON(path,body){
+
  const response=await fetch(API+path,{
   method:"POST",
   headers:{"Content-Type":"application/json"},
   body:JSON.stringify(body)
  });
- if(!response.ok) throw new Error("Server error: "+response.status);
+
+ if(!response.ok){
+  throw new Error("Server error: "+response.status);
+ }
+
  return response.json().catch(()=>({}));
 }
 
+// ==============================
+// ENABLE MICROPHONE
+// ==============================
+
 async function enableMicrophone(){
+
  try{
-  if(!navigator.mediaDevices||!navigator.mediaDevices.getUserMedia)
+
+  if(!navigator.mediaDevices||
+     !navigator.mediaDevices.getUserMedia){
    throw new Error("Microphone not supported");
+  }
 
   setStatus("REQUESTING MICROPHONE...");
-  const stream=await navigator.mediaDevices.getUserMedia({audio:true});
+
+  const stream=
+   await navigator.mediaDevices.getUserMedia({audio:true});
+
   stream.getTracks().forEach(track=>track.stop());
 
-  if(!SpeechRecognition) throw new Error("Open this page in Google Chrome");
+  if(!SpeechRecognition){
+   throw new Error("Open this page in Google Chrome");
+  }
 
   enabled=true;
+
   setStatus("MICROPHONE READY");
+
   $("enableBtn").textContent="MICROPHONE ENABLED";
+
  }catch(error){
+
   setStatus("MIC ERROR: "+error.message);
  }
 }
 
+// ==============================
+// CREATE SPEECH RECOGNITION
+// ==============================
+
 function createRecognition(){
+
  const r=new SpeechRecognition();
+
  r.lang="en-IN";
  r.continuous=true;
  r.interimResults=true;
  r.maxAlternatives=1;
 
  r.onstart=()=>{
+
   recognitionRunning=true;
+
   animate(true);
   setStatus("LISTENING...");
+
+  if(recognitionStartResolver){
+   recognitionStartResolver(true);
+  }
  };
 
  r.onresult=event=>{
+
   let interim="";
+
   for(let i=event.resultIndex;i<event.results.length;i++){
-   const transcript=event.results[i][0].transcript;
-   if(event.results[i].isFinal) finalText+=transcript+" ";
-   else interim+=transcript;
+
+   const transcript=
+    event.results[i][0].transcript;
+
+   if(event.results[i].isFinal){
+    finalText+=transcript+" ";
+   }else{
+    interim+=transcript;
+   }
   }
+
   interimText=interim;
-  const display=(finalText+interimText).trim();
-  if(display) youSaidEl.textContent=display;
+
+  const display=
+   (finalText+interimText).trim();
+
+  if(display){
+   youSaidEl.textContent=display;
+  }
  };
 
  r.onerror=event=>{
-  if(event.error==="no-speech") setStatus("NO SPEECH DETECTED");
-  else if(event.error==="not-allowed"||event.error==="service-not-allowed"){
+
+  if(event.error==="no-speech"){
+   setStatus("NO SPEECH DETECTED");
+  }
+  else if(
+   event.error==="not-allowed"||
+   event.error==="service-not-allowed"
+  ){
    enabled=false;
    setStatus("MIC PERMISSION BLOCKED");
-  }else if(event.error==="network") setStatus("CHROME SPEECH NETWORK ERROR");
-  else setStatus("VOICE ERROR: "+event.error);
+  }
+  else if(event.error==="network"){
+   setStatus("CHROME SPEECH NETWORK ERROR");
+  }
+  else{
+   setStatus("VOICE ERROR: "+event.error);
+  }
+
+  if(recognitionStartResolver){
+   recognitionStartResolver(false);
+  }
  };
 
  r.onend=()=>{
+
   recognitionRunning=false;
   animate(false);
 
   if(pttActive||manualActive){
+
    clearTimeout(restartTimer);
+
    restartTimer=setTimeout(()=>{
-    if(pttActive||manualActive) startRecognition();
+
+    if(pttActive||manualActive){
+     startRecognition();
+    }
+
    },350);
+
    return;
   }
 
   if(shouldSubmit){
+
    shouldSubmit=false;
+
    clearTimeout(finishTimer);
-   const text=(finalText||interimText).trim();
+
+   const text=
+    (finalText||interimText).trim();
+
    finalText="";
    interimText="";
-   if(text) sendQuestion(text);
-   else setStatus("NO SPEECH DETECTED — TRY AGAIN");
+
+   if(text){
+    sendQuestion(text);
+   }else{
+    setStatus("NO SPEECH DETECTED — TRY AGAIN");
+   }
+
   }else{
+
    setStatus("SYSTEM READY");
   }
  };
+
  return r;
 }
 
+// ==============================
+// START RECOGNITION
+// ==============================
+
 function startRecognition(){
- if(!enabled){setStatus("FIRST ENABLE MICROPHONE");return}
- if(!recognition) recognition=createRecognition();
+
+ if(!enabled){
+  setStatus("FIRST ENABLE MICROPHONE");
+  return;
+ }
+
+ if(!recognition){
+  recognition=createRecognition();
+ }
+
  if(recognitionRunning)return;
- try{recognition.start()}
- catch(error){
+
+ try{
+
+  recognition.start();
+
+ }catch(error){
+
   setTimeout(()=>{
-   if((pttActive||manualActive)&&!recognitionRunning){
-    try{recognition.start()}catch(e){}
+
+   if(
+    (pttActive||manualActive)&&
+    !recognitionRunning
+   ){
+
+    try{
+     recognition.start();
+    }catch(e){}
    }
+
   },500);
  }
 }
 
-function beginListening(source){
- if(!enabled){setStatus("FIRST ENABLE MICROPHONE");return}
+// ==============================
+// BEGIN LISTENING
+// ==============================
+
+async function beginListening(source){
+
+ if(!enabled){
+  setStatus("FIRST ENABLE MICROPHONE");
+  return false;
+ }
+
  clearTimeout(restartTimer);
  clearTimeout(finishTimer);
+
  finalText="";
  interimText="";
  shouldSubmit=false;
  lastSubmitted="";
 
  if(source==="ptt"){
+
   pttActive=true;
   manualActive=false;
+
  }else{
+
   manualActive=true;
   pttActive=false;
  }
 
  youSaidEl.textContent="Listening...";
  setStatus("LISTENING...");
+
+ // Wait for Chrome to actually start its microphone.
+ const startPromise=waitForRecognitionStart(3000);
+
  startRecognition();
+
+ const started=await startPromise;
+
+ if(!started){
+  console.log("Recognition start not confirmed yet.");
+ }
+
+ return started;
 }
 
+// ==============================
+// STOP LISTENING
+// ==============================
+
 function stopListening(){
+
  pttActive=false;
  manualActive=false;
+
  clearTimeout(restartTimer);
 
  if(!recognitionRunning){
-  const text=(finalText||interimText).trim();
+
+  // Recognition may still be starting.
+  // Do not immediately discard the PTT request.
+  if(recognition){
+
+   shouldSubmit=true;
+
+   clearTimeout(finishTimer);
+
+   finishTimer=setTimeout(()=>{
+
+    if(shouldSubmit&&!recognitionRunning){
+
+     shouldSubmit=false;
+
+     const text=
+      (finalText||interimText).trim();
+
+     finalText="";
+     interimText="";
+
+     if(text){
+      sendQuestion(text);
+     }else{
+      setStatus("NO SPEECH DETECTED — TRY AGAIN");
+     }
+    }
+
+   },2500);
+
+   return;
+  }
+
+  const text=
+   (finalText||interimText).trim();
+
   finalText="";
   interimText="";
-  if(text)sendQuestion(text);
-  else setStatus("NO SPEECH DETECTED — TRY AGAIN");
+
+  if(text){
+   sendQuestion(text);
+  }else{
+   setStatus("NO SPEECH DETECTED — TRY AGAIN");
+  }
+
   return;
  }
 
  shouldSubmit=true;
+
  setStatus("PROCESSING YOUR VOICE...");
- try{recognition.stop()}catch(error){}
+
+ try{
+  recognition.stop();
+ }catch(error){}
 
  clearTimeout(finishTimer);
+
  finishTimer=setTimeout(()=>{
+
   if(shouldSubmit){
+
    shouldSubmit=false;
-   try{recognition.abort()}catch(e){}
-   const text=(finalText||interimText).trim();
+
+   try{
+    recognition.abort();
+   }catch(e){}
+
+   const text=
+    (finalText||interimText).trim();
+
    finalText="";
    interimText="";
-   if(text)sendQuestion(text);
-   else setStatus("NO SPEECH DETECTED — TRY AGAIN");
+
+   if(text){
+    sendQuestion(text);
+   }else{
+    setStatus("NO SPEECH DETECTED — TRY AGAIN");
+   }
   }
+
  },4000);
 }
 
-function getLiveContext(){
- const now=new Date();
- const time=new Intl.DateTimeFormat("en-IN",{
-  timeZone:"Asia/Kolkata",dateStyle:"full",timeStyle:"long"
- }).format(now);
+// ==============================
+// LIVE CONTEXT
+// ==============================
 
- let context="Current date and time in Kanpur: "+time+". ";
+function getLiveContext(){
+
+ const now=new Date();
+
+ const time=
+  new Intl.DateTimeFormat("en-IN",{
+   timeZone:"Asia/Kolkata",
+   dateStyle:"full",
+   timeStyle:"long"
+  }).format(now);
+
+ let context=
+  "Current date and time in Kanpur: "+time+". ";
 
  if(weatherData){
-  context+="Live weather in Kanpur: temperature "+weatherData.temperature+
-   " degrees Celsius, feels like "+weatherData.feels_like+
-   " degrees Celsius, humidity "+weatherData.humidity+
-   " percent, wind speed "+weatherData.wind_speed+
-   " km/h, condition "+weatherData.condition+
-   ", precipitation "+weatherData.precipitation+" mm. ";
+
+  context+=
+   "Live weather in Kanpur: temperature "+
+   weatherData.temperature+
+   " degrees Celsius, feels like "+
+   weatherData.feels_like+
+   " degrees Celsius, humidity "+
+   weatherData.humidity+
+   " percent, wind speed "+
+   weatherData.wind_speed+
+   " km/h, condition "+
+   weatherData.condition+
+   ", precipitation "+
+   weatherData.precipitation+
+   " mm. ";
+
  }else{
-  context+="Live weather data is currently unavailable. ";
+
+  context+=
+   "Live weather data is currently unavailable. ";
  }
+
  return context;
 }
 
+// ==============================
+// SEND QUESTION TO AI
+// ==============================
+
 async function sendQuestion(text){
+
  if(!text||text===lastSubmitted)return;
+
  lastSubmitted=text;
+
  youSaidEl.textContent=text;
  replyEl.textContent="Thinking...";
+
  setStatus("ABNEX IS THINKING...");
  animate(true);
 
  try{
+
   const liveQuestion=
-   "Answer the user's question naturally. Use the following live information when relevant. Do not invent live values. "+
+   "Answer the user's question naturally. "+
+   "Use the following live information when relevant. "+
+   "Do not invent live values. "+
    getLiveContext()+
    "User question: "+text;
 
-  const data=await postJSON("/ask",{text:liveQuestion});
-  const answer=data.reply||data.response||data.answer||"No reply received.";
+  const data=await postJSON("/ask",{
+   text:liveQuestion
+  });
+
+  const answer=
+   data.reply||
+   data.response||
+   data.answer||
+   "No reply received.";
 
   replyEl.textContent=answer;
+
   setStatus("ABNEX REPLIED");
   animate(false);
 
-  try{await postJSON("/bridge/phone-message",{text:answer})}
-  catch(e){console.log("ESP32 bridge:",e.message)}
+  try{
+
+   await postJSON("/bridge/phone-message",{
+    text:answer
+   });
+
+  }catch(error){
+
+   console.log("ESP32 bridge:",error.message);
+  }
 
   speak(answer);
+
  }catch(error){
-  replyEl.textContent="Could not connect to ABNEX server. Please try again.";
+
+  replyEl.textContent=
+   "Could not connect to ABNEX server. Please try again.";
+
   setStatus("SERVER CONNECTION ERROR");
   animate(false);
  }
 }
 
+// ==============================
+// TEXT TO SPEECH
+// ==============================
+
 function speak(text){
+
  if(!("speechSynthesis" in window))return;
+
  window.speechSynthesis.cancel();
- const utterance=new SpeechSynthesisUtterance(text);
+
+ const utterance=
+  new SpeechSynthesisUtterance(text);
+
  utterance.lang="en-IN";
  utterance.rate=1;
  utterance.pitch=1;
- utterance.onstart=()=>setStatus("ABNEX SPEAKING...");
- utterance.onend=()=>setStatus("SYSTEM READY");
+
+ utterance.onstart=()=>{
+  setStatus("ABNEX SPEAKING...");
+ };
+
+ utterance.onend=()=>{
+  setStatus("SYSTEM READY");
+ };
+
  window.speechSynthesis.speak(utterance);
 }
 
+// ==============================
+// PHONE BRIDGE EVENT HANDLER
+// ==============================
+
+async function handleBridgeEvent(event){
+
+ const type=
+  event.type||
+  event.event||
+  event.action||
+  event.command;
+
+ console.log("ABNEX TOUCH EVENT:",type,event);
+
+ if(type==="ptt_start"){
+
+  if(!enabled){
+   setStatus("ENABLE MICROPHONE FIRST");
+   return;
+  }
+
+  await beginListening("ptt");
+
+ }else if(type==="ptt_stop"){
+
+  if(pttActive){
+   stopListening();
+  }
+ }
+}
+
+// ==============================
+// PHONE BRIDGE POLLING
+// ==============================
+
 async function pollPhoneBridge(){
+
  if(bridgeBusy)return;
+
  bridgeBusy=true;
+
  try{
-  const response=await fetch(API+"/bridge/phone-poll?after="+bridgeAfter,{cache:"no-store"});
-  if(!response.ok)throw new Error("Bridge poll failed");
+
+  const response=await fetch(
+   API+"/bridge/phone-poll?after="+bridgeAfter,
+   {cache:"no-store"}
+  );
+
+  if(!response.ok){
+   throw new Error("Bridge poll failed");
+  }
+
   const data=await response.json();
+
+  // First poll: ignore old events from previous sessions.
+  if(!bridgeReady){
+
+   bridgeAfter=Number(data.last_id||0);
+   bridgeReady=true;
+
+   console.log(
+    "ABNEX BRIDGE READY. LAST EVENT:",
+    bridgeAfter
+   );
+
+   return;
+  }
+
   const events=data.events||[];
 
   for(const event of events){
-   if(event.id!==undefined)bridgeAfter=Math.max(bridgeAfter,Number(event.id));
-   const type=event.type||event.event||event.action||event.command;
-   if(type==="ptt_start")beginListening("ptt");
-   else if(type==="ptt_stop"&&pttActive)stopListening();
+
+   if(event.id!==undefined){
+
+    bridgeAfter=Math.max(
+     bridgeAfter,
+     Number(event.id)
+    );
+   }
+
+   // Process events in order.
+   // A stop event waits for the start handler to finish.
+   bridgeQueue=bridgeQueue.then(
+    ()=>handleBridgeEvent(event)
+   ).catch(error=>{
+    console.error("Bridge event error:",error);
+   });
   }
-  if(data.last_id!==undefined)bridgeAfter=Math.max(bridgeAfter,Number(data.last_id));
+
+  if(data.last_id!==undefined){
+
+   bridgeAfter=Math.max(
+    bridgeAfter,
+    Number(data.last_id)
+   );
+  }
+
  }catch(error){
-  // Continue polling after temporary connection errors.
+
+  console.log("PHONE BRIDGE ERROR:",error.message);
+
  }finally{
+
   bridgeBusy=false;
  }
 }
 
-$("enableBtn").addEventListener("click",enableMicrophone);
+// ==============================
+// BUTTONS
+// ==============================
+
+$("enableBtn").addEventListener(
+ "click",
+ enableMicrophone
+);
+
 $("voiceBtn").addEventListener("click",()=>{
- if(manualActive||pttActive)stopListening();
- else beginListening("manual");
+
+ if(manualActive||pttActive){
+  stopListening();
+ }else{
+  beginListening("manual");
+ }
 });
+
 $("stopBtn").addEventListener("click",()=>{
- if(manualActive||pttActive)stopListening();
- else{
+
+ if(manualActive||pttActive){
+
+  stopListening();
+
+ }else{
+
   if(recognitionRunning){
+
    shouldSubmit=false;
-   try{recognition.abort()}catch(e){}
+
+   try{
+    recognition.abort();
+   }catch(e){}
   }
+
   window.speechSynthesis.cancel();
+
   setStatus("STOPPED");
   animate(false);
  }
 });
 
-if(!SpeechRecognition)setStatus("PLEASE OPEN IN GOOGLE CHROME");
+// ==============================
+// INITIALIZE
+// ==============================
+
+if(!SpeechRecognition){
+
+ setStatus("PLEASE OPEN IN GOOGLE CHROME");
+
+}else{
+
+ setStatus("SYSTEM READY");
+}
+
 setInterval(pollPhoneBridge,400);
+pollPhoneBridge();
+
 </script>
 </body>
 </html>
